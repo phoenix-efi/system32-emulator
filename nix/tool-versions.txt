@@ -1,0 +1,9 @@
+# Tool versions pinned by the flake (flake.lock fixes the nixpkgs revisions; flake.nix refuses to evaluate if a
+# package's version differs from this file). scripts/tool_versions.sh compares the tools on PATH with it: `make check`
+# warns loudly on a mismatch, and fails in CI (CI=true) or inside `nix develop` (PINNED=1). <tool> <version>
+python 3.12.8
+uv 0.4.30
+node 20.19.1
+emscripten 4.0.10
+cppcheck 2.16.0
+playwright-chromium 1.50.1

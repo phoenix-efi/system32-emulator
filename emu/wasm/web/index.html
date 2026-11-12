@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>System32 Emulator</title>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --panel: #131a26;
+    --panel-alt: #182232;
+    --border: #26354d;
+    --text: #e6edf7;
+    --muted: #8ea0bc;
+    --accent: #38bdf8;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    background: #0f1622;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(56, 189, 248, 0.14);
+    color: var(--accent);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-right: 5px;
+  }
+  .dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.warn { background: var(--amber); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 680px 1fr 440px;
+    gap: 14px;
+    padding: 14px;
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1560px) {
+    .grid { grid-template-columns: 680px 1fr; }
+    .col-telem { grid-column: 1 / -1; }
+  }
+  @media (max-width: 1100px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin: 0 0 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Cockpit Controller Bezel */
+  .bezel {
+    background: linear-gradient(180deg, #1b222d 0%, #10151d 100%);
+    border: 2px solid #2e3b4e;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 24px rgba(0,0,0,0.5);
+  }
+  .bezel-brand {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #9fb0c7;
+    font-family: var(--mono);
+    font-size: 11px;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  .screen-wrap {
+    position: relative;
+    width: 640px;
+    height: 480px;
+    margin: 0 auto;
+    background: #000;
+    border: 3px solid #070a0f;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  #lcd {
+    width: 640px;
+    height: 480px;
+    image-rendering: pixelated;
+    display: block;
+  }
+  .bezel-controls {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+    align-items: stretch;
+  }
+  .bezel-btn {
+    background: #232d3f;
+    color: #f0f6fc;
+    border: 1px solid #3b4d6b;
+    border-bottom: 3px solid #0d131c;
+    border-radius: 6px;
+    padding: 10px 8px;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.05s, background 0.1s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .bezel-btn small {
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .bezel-btn:hover { background: #2c3950; }
+  .bezel-btn:active, .bezel-btn.active {
+    transform: translateY(2px);
+    border-bottom-width: 1px;
+    background: #1d4ed8;
+  }
+  .knob-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #171f2c;
+    border: 1px solid #2e3d54;
+    border-radius: 6px;
+    padding: 8px;
+  }
+  .knob-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+  }
+  .knob-row button {
+    flex: 1;
+    background: #263349;
+    color: var(--text);
+    border: 1px solid #3c4f6e;
+    border-radius: 4px;
+    padding: 6px 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .knob-row button:hover { background: #324360; }
+  .combo-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .combo-btn {
+    flex: 1;
+    background: rgba(56, 189, 248, 0.1);
+    color: var(--accent);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 5px;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-family: var(--mono);
+    cursor: pointer;
+  }
+  .combo-btn:hover { background: rgba(56, 189, 248, 0.2); }
+
+  /* Dropzone & Presets */
+  .dropzone {
+    border: 2px dashed #385072;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    background: rgba(24, 34, 50, 0.6);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 10px;
+  }
+  .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(56, 189, 248, 0.12);
+  }
+  .file-slots {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    margin-bottom: 10px;
+  }
+  .slot {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+  .slot.loaded { border-color: rgba(34, 197, 94, 0.5); }
+  .slot span.st { color: var(--muted); }
+  .slot.loaded span.st { color: var(--green); }
+
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  button.primary, button.secondary {
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  button.primary {
+    background: #0284c7;
+    color: #fff;
+    border-color: #38bdf8;
+  }
+  button.primary:hover { background: #0369a1; }
+  button.secondary {
+    background: var(--panel-alt);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  button.secondary:hover { background: #223047; }
+  button.secondary.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.14);
+  }
+
+  /* Sliders */
+  .slider-group {
+    margin-bottom: 10px;
+  }
+  .slider-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 3px;
+  }
+  .slider-val {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Switches */
+  .ecu-switch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .ecu-sw-box {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .ecu-sw-box h4 {
+    margin: 0 0 6px 0;
+    font-size: 12px;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+  .sw-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 12px;
+  }
+  .sw-row input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+
+  /* Telemetry */
+  .telem-ecu {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .telem-ecu h3 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+  }
+  table.telem-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  table.telem-tbl th, table.telem-tbl td {
+    text-align: right;
+    padding: 3px 5px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  table.telem-tbl th:first-child, table.telem-tbl td:first-child {
+    text-align: left;
+  }
+  table.telem-tbl th { color: var(--muted); font-weight: 500; }
+  .con-box {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: #080c12;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    max-height: 95px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    color: #93c5fd;
+  }
+
+  /* Map Inspector */
+  .map-wrap {
+    overflow-x: auto;
+    margin-top: 6px;
+  }
+  table.map-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  table.map-tbl th, table.map-tbl td {
+    border: 1px solid #243248;
+    padding: 2px 4px;
+    text-align: center;
+  }
+  table.map-tbl th {
+    background: #0f1622;
+    color: var(--muted);
+  }
+  table.map-tbl td.active-cell {
+    outline: 2px solid var(--accent);
+    background: rgba(56, 189, 248, 0.22);
+    font-weight: 700;
+  }
+  table.map-tbl input.cell-in {
+    width: 36px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: center;
+    padding: 0;
+  }
+  table.map-tbl input.cell-in:focus {
+    outline: 1px solid var(--accent);
+    background: #0b0f17;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <span>System32 Emulator</span>
+    <span class="badge">Dual-ECU + Cockpit Controller</span>
+  </h1>
+  <div class="status-bar">
+    <span><span id="status-dot" class="dot"></span><span id="status-text">Initializing simulator…</span></span>
+    <span>FW: <strong id="fw-ver" style="color:var(--muted)">none loaded</strong></span>
+    <span id="not-for-flight" style="display:none;color:var(--warn, #f5a524);font-weight:600;">Not for flight</span>
+    <span>Display: <strong id="gpu-mode" style="color:var(--accent)">WebGL2 GPU</strong></span>
+    <span>Sim Time: <strong id="sim-time">0.00s</strong></span>
+    <span>Speed: <strong id="sim-rate">0.0×</strong></span>
+    <span>Fuel Flow: <strong id="sim-gph" style="color:var(--green)">0.0 GPH</strong></span>
+    <span>AFR: <strong id="sim-afr" style="color:var(--accent)">14.2</strong></span>
+    <span>Trim: <strong id="sim-trim">0%</strong></span>
+  </div>
+</header>
+<div style="background:#131a26;border-bottom:1px solid #26354d;padding:6px 18px;font-size:11px;color:#8ea0bc;">
+  This emulator is not affiliated with, endorsed by, or sponsored by Protek Performance / FlyEFII
+</div>
+
+<div class="grid">
+  <!-- LEFT COLUMN: COCKPIT CONTROLLER DISPLAY & BEZEL -->
+  <div class="col-display">
+    <div class="bezel">
+      <div class="bezel-brand">
+        <span>SYSTEM32 EMULATOR</span>
+        <span>DUAL-ECU COCKPIT CONTROLLER</span>
+      </div>
+      <div class="screen-wrap">
+        <canvas id="lcd" width="320" height="240"></canvas>
+      </div>
+
+      <div class="bezel-controls">
+        <div class="knob-box" id="knob-wheel" title="Use mouse wheel or buttons to turn the fuel-trim / menu knob">
+          <div style="text-align:center;font-size:11px;color:var(--muted);font-family:var(--mono);">
+            ROTARY KNOB (SCROLL OR CLICK)
+          </div>
+          <div class="knob-row">
+            <button type="button" onclick="turnKnob(-5)">-5</button>
+            <button type="button" onclick="turnKnob(-1)">&#9664; -1</button>
+            <button type="button"
+                    onmousedown="btnHold(0,true)" onmouseup="btnHold(0,false)" onmouseleave="btnHold(0,false)"
+                    ontouchstart="e=>{e.preventDefault();btnHold(0,true)}" ontouchend="btnHold(0,false)"
+                    title="Click to select, or press and hold 1.5s">PUSH</button>
+            <button type="button" onclick="turnKnob(1)">+1 &#9654;</button>
+            <button type="button" onclick="turnKnob(5)">+5</button>
+          </div>
+        </div>
+
+        <button type="button" class="bezel-btn" id="btn-1"
+                onmousedown="btnHold(1,true)" onmouseup="btnHold(1,false)" onmouseleave="btnHold(1,false)"
+                ontouchstart="event.preventDefault();btnHold(1,true)" ontouchend="btnHold(1,false)"
+                title="Tap to cycle gauge pages, or press and hold 1.5s for Main Menu">
+          <span>MENU</span>
+          <small>Tap / Hold 1.5s</small>
+        </button>
+        <button type="button" class="bezel-btn" id="btn-2"
+                onmousedown="btnHold(2,true)" onmouseup="btnHold(2,false)" onmouseleave="btnHold(2,false)"
+                ontouchstart="event.preventDefault();btnHold(2,true)" ontouchend="btnHold(2,false)">
+          <span>TUNE</span>
+          <small>Tap / Hold</small>
+        </button>
+        <button type="button" class="bezel-btn" id="btn-3"
+                onmousedown="btnHold(3,true)" onmouseup="btnHold(3,false)" onmouseleave="btnHold(3,false)"
+                ontouchstart="event.preventDefault();btnHold(3,true)" ontouchend="btnHold(3,false)">
+          <span>MONITOR</span>
+          <small>ECU 1 / 2</small>
+        </button>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted);">
+        <span>Tip: Press and hold <strong>MENU</strong> for 1.5s (while RPM = 0) to open the Main Menu.</span>
+        <button type="button" class="combo-btn" style="flex:0 0 auto;padding:4px 10px;" onclick="pulseMask(0b1100, 1500)" title="Simulates pressing TUNE and MONITOR simultaneously for 1.5 seconds">
+          Two-Finger Chord: TUNE + MONITOR
+        </button>
+      </div>
+    </div>
+
+    <!-- CARD 5: LIVE MAP INSPECTOR / EDITOR -->
+    <div class="card" style="margin-top:12px;">
+      <div class="card-title">
+        <span>5. Live Fuel &amp; Ignition Map Editor</span>
+        <div class="btn-row">
+          <button type="button" class="secondary active" id="map-btn-fuel" onclick="selectMapTab(1)">Fuel Map</button>
+          <button type="button" class="secondary" id="map-btn-ign" onclick="selectMapTab(0)">Ignition Map</button>
+          <button type="button" class="secondary" onclick="renderMapTable()">Refresh</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+        Before boot, edits go into both ECU FRAM images; while running, they go to both ECUs as table writes over the link (as the Controller sends them) and the view shows what ECU 1 stored. The active RPM / MAP operating cell is highlighted.
+      </div>
+      <div class="map-wrap" id="map-table-container"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;" id="map-write-status"></div>
+    </div>
+  </div>
+
+  <!-- CENTER COLUMN: PRESETS, ENGINE & SENSORS -->
+  <div class="col-controls">
+    <div class="card">
+      <div class="card-title">
+        <span>1. Aircraft Configuration &amp; Firmware</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent);" id="loaded-summary">No firmware loaded</span>
+      </div>
+
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button type="button" class="secondary" onclick="rebootSystem()">Reboot</button>
+        <span style="flex:1"></span>
+        <button type="button" class="secondary" id="spd-0" onclick="setSimSpeed(0)">Pause</button>
+        <button type="button" class="secondary active" id="spd-1" onclick="setSimSpeed(1)">1×</button>
+        <button type="button" class="secondary" id="spd-2" onclick="setSimSpeed(2)">2×</button>
+        <button type="button" class="secondary" id="spd-3" onclick="setSimSpeed(3)">Max</button>
+      </div>
+
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()" style="padding:10px;margin-bottom:8px;">
+        <strong>Your own firmware replaces the default.</strong> Drop a Cockpit Controller image (<code>.bin</code> / <code>.hex</code>), the ECU images (<code>.bin</code> / <code>.hex</code>, <code>*_bflash.bin</code> + <code>*_pflash.bin</code>, or an application-only <code>*_app.flat</code>), and optional <code>.fram</code> config files here, or click to choose them. You can also drop a <code>DATALOG.CSV</code> flight log.
+        <div id="fw-default-note" style="font-size:11px;color:var(--muted);margin-top:3px;">
+          No firmware is loaded yet.
+        </div>
+        <input type="file" id="file-input" multiple style="display:none" onchange="handleFiles(this.files)" />
+      </div>
+
+      <div class="btn-row">
+        <span style="font-size:11px;color:var(--muted);">Export Settings:</span>
+        <button type="button" class="secondary" onclick="downloadFram(0, 'controller-config.cfg')">Controller Config</button>
+        <button type="button" class="secondary" onclick="downloadFram(1, 'ecu1-config.cfg')">ECU 1 Maps &amp; Config</button>
+        <button type="button" class="secondary" onclick="downloadFram(2, 'ecu2-config.cfg')">ECU 2 Maps &amp; Config</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>2. Engine Crank / Cam Trigger Simulator</span>
+        <div class="btn-row">
+          <button type="button" class="secondary" onclick="setRpmPreset(0)">Stop (0)</button>
+          <button type="button" class="secondary" onclick="setRpmPreset(750)">Idle (750)</button>
+          <button type="button" class="secondary" onclick="setRpmPreset(1800)">Runup (1800)</button>
+          <button type="button" class="secondary" onclick="setCruisePreset()">Cruise (2400)</button>
+          <button type="button" class="secondary" onclick="setTakeoffPreset()">Takeoff (2700 / 29&Prime;)</button>
+        </div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-head">
+          <span>Engine Speed (RPM)</span>
+          <span class="slider-val" id="val-rpm">2400 RPM</span>
+        </div>
+        <input type="range" id="sl-rpm" min="0" max="3000" step="10" value="2400" oninput="updateEngine()" />
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;margin-top:8px;background:var(--panel-alt);padding:8px 10px;border-radius:6px;border:1px solid var(--border);">
+        <div class="sw-row">
+          <span>Engine Configuration:</span>
+          <select id="sel-cyl" onchange="updateEngine()" style="background:#0b0f17;color:#fff;border:1px solid #26354d;border-radius:4px;padding:3px 8px;">
+            <option value="6" selected>6 Cylinder (Lycoming IO-540)</option>
+            <option value="4">4 Cylinder (Lycoming IO-360)</option>
+          </select>
+        </div>
+        <div class="sw-row">
+          <span>ECU 1 Trigger Sensor Reference (&deg;BTDC):</span>
+          <input type="number" id="in-mag1" value="80" min="40" max="120" onchange="updateEngine()"
+                 style="width:64px;background:#0b0f17;color:#fff;border:1px solid #26354d;border-radius:4px;padding:3px 6px;text-align:right;font-family:var(--mono);" />
+        </div>
+        <div class="sw-row">
+          <span>ECU 2 Trigger Sensor Reference (&deg;BTDC):</span>
+          <input type="number" id="in-mag2" value="77" min="40" max="120" onchange="updateEngine()"
+                 style="width:64px;background:#0b0f17;color:#fff;border:1px solid #26354d;border-radius:4px;padding:3px 6px;text-align:right;font-family:var(--mono);" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>3. Engine Sensors &amp; Dual Electrical Buses</span>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-head">
+          <span>Manifold Pressure (MAP)</span>
+          <span class="slider-val" id="val-map">24.0 inHg</span>
+        </div>
+        <input type="range" id="sl-map" min="8.0" max="30.5" step="0.1" value="24.0" oninput="updateSensors()" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-head">
+          <span>Throttle Position (TPS)</span>
+          <span class="slider-val" id="val-tps">55 %</span>
+        </div>
+        <input type="range" id="sl-tps" min="0" max="100" step="1" value="55" oninput="updateSensors()" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-head">
+          <span>Wideband Air-Fuel Ratio (AFR)</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span class="slider-val" id="val-afr">14.2 (Auto)</span>
+            <button type="button" class="secondary" id="btn-afr-auto" onclick="resetAfrAuto()" style="padding:1px 6px;font-size:10px;display:none;">Reset Auto</button>
+          </span>
+        </div>
+        <input type="range" id="sl-afr" min="10.0" max="19.5" step="0.1" value="14.2" oninput="onManualAfrSlide()" />
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Intake Air Temp (IAT)</span>
+            <span class="slider-val" id="val-iat">72 &deg;F</span>
+          </div>
+          <input type="range" id="sl-iat" min="0" max="160" step="1" value="72" oninput="updateSensors()" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Engine Temp</span>
+            <span class="slider-val" id="val-et">185 &deg;F</span>
+          </div>
+          <input type="range" id="sl-et" min="60" max="250" step="1" value="185" oninput="updateSensors()" />
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Bus 1 Volts (ECU 1)</span>
+            <span class="slider-val" id="val-batt1">14.1 V</span>
+          </div>
+          <input type="range" id="sl-batt1" min="8.5" max="16.0" step="0.1" value="14.1" oninput="updateSensors()" />
+        </div>
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Bus 2 Volts (ECU 2)</span>
+            <span class="slider-val" id="val-batt2">14.1 V</span>
+          </div>
+          <input type="range" id="sl-batt2" min="8.5" max="16.0" step="0.1" value="14.1" oninput="updateSensors()" />
+        </div>
+      </div>
+
+      <div class="slider-group" style="margin-bottom:0;">
+        <div class="slider-head">
+          <span>Throttle Sensor Signal Noise</span>
+          <span class="slider-val" id="val-noise">&plusmn;0 counts</span>
+        </div>
+        <input type="range" id="sl-noise" min="0" max="20" step="1" value="0" oninput="updateSensors()" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>4. Cockpit Switches &amp; Sensor Fault Testing</span>
+        <div class="btn-row">
+          <button type="button" class="secondary" onclick="injectFailoverPreset()">Simulate ECU 1 Off + Floating TPS</button>
+          <button type="button" class="secondary" onclick="clearFaultsPreset()">Clear Faults</button>
+        </div>
+      </div>
+      <div class="ecu-switch-grid">
+        <div class="ecu-sw-box">
+          <h4>ECU 1 (Primary Bus)</h4>
+          <div class="sw-row"><span>ECU Power</span><input type="checkbox" id="sw-e1-pwr" checked onchange="updateSwitches(0)" /></div>
+          <div class="sw-row"><span>Link Data Wires (off = powered but silent)</span><input type="checkbox" id="sw-e1-lnk" checked onchange="updateSwitches(0)" /></div>
+          <div class="sw-row"><span>Ignition Enable (P-Lead)</span><input type="checkbox" id="sw-e1-pld" checked onchange="updateSwitches(0)" /></div>
+          <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e1-inj" checked onchange="updateSwitches(0)" /></div>
+          <div class="sw-row"><span>Start Timing Retard</span><input type="checkbox" id="sw-e1-ret" onchange="updateSwitches(0)" /></div>
+        </div>
+        <div class="ecu-sw-box">
+          <h4>ECU 2 (Secondary Bus)</h4>
+          <div class="sw-row"><span>ECU Power</span><input type="checkbox" id="sw-e2-pwr" checked onchange="updateSwitches(1)" /></div>
+          <div class="sw-row"><span>Link Data Wires (off = powered but silent)</span><input type="checkbox" id="sw-e2-lnk" checked onchange="updateSwitches(1)" /></div>
+          <div class="sw-row"><span>Ignition Enable (P-Lead)</span><input type="checkbox" id="sw-e2-pld" checked onchange="updateSwitches(1)" /></div>
+          <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e2-inj" checked onchange="updateSwitches(1)" /></div>
+          <div class="sw-row"><span>Start Timing Retard</span><input type="checkbox" id="sw-e2-ret" onchange="updateSwitches(1)" /></div>
+          <div class="sw-row">
+            <span>ECU 2 Throttle Sensor:</span>
+            <select id="sel-e2-tps" onchange="updateTpsFault()" style="background:#0b0f17;color:#fff;border:1px solid #26354d;border-radius:4px;padding:2px 4px;font-size:11px;">
+              <option value="none">Normal (Connected)</option>
+              <option value="float">Disconnected / Floating</option>
+              <option value="gnd">Shorted to Ground (0V)</option>
+              <option value="5v">Shorted to 5V</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 6: DATALOG CSV REPLAY -->
+    <div class="card">
+      <div class="card-title">
+        <span>6. Flight Log Replay (1 Hz Datalog.CSV)</span>
+        <div class="btn-row">
+          <button type="button" class="secondary" onclick="loadSampleTakeoffReplay()">Load Demo Climb (synthetic)</button>
+          <button type="button" class="secondary" id="btn-rpl-play" onclick="toggleReplayPlay()">Play / Pause</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:4px;">
+        <span id="rpl-status">Drop a DATALOG.CSV above or click "Load Demo Climb (synthetic)"</span>
+        <span id="rpl-logged"></span>
+      </div>
+      <input type="range" id="sl-rpl" min="0" max="0" value="0" oninput="scrubReplay(this.value)" disabled />
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: LIVE DUAL-ECU TELEMETRY -->
+  <div class="col-telem">
+    <div class="card">
+      <div class="card-title">
+        <span>Live Hardware Outputs (Coils, Injectors, Serial Link)</span>
+      </div>
+      <div id="telem-container"></div>
+      <div class="card-title" style="margin-top:10px;">
+        <span>ECU Diagnostic Console</span>
+      </div>
+      <div class="con-box" id="ecu-console">Waiting for ECU boot…</div>
+    </div>
+  </div>
+</div>
+
+<script src="s32_wasm.js"></script>
+<script>
+let M = null;
+let simSpeed = 1;
+let lastFrameWall = performance.now();
+let measuredRate = 0;
+let activeMapIsFuel = 1;
+let afrManualOverride = false;
+
+// Replay state
+let replayRows = [];
+let replayIdx = 0;
+let replayPlaying = false;
+let lastReplayStepSim = 0;
+
+const lcdCanvas = document.getElementById("lcd");
+let lcdGl = null;
+let lcdGlTex = null;
+let lcdCtx2d = null;
+let lcdImgData = null;
+
+function initLcdRenderer() {
+  const glOpts = {
+    alpha: false,
+    depth: false,
+    stencil: false,
+    antialias: false,
+    preserveDrawingBuffer: true,
+    powerPreference: "high-performance",
+    desynchronized: true
+  };
+  const gl = lcdCanvas.getContext("webgl2", glOpts) || lcdCanvas.getContext("webgl", glOpts);
+  if (gl) {
+    const isWebGL2 = (typeof WebGL2RenderingContext !== "undefined") && (gl instanceof WebGL2RenderingContext);
+    const vsSrc = `
+      attribute vec2 a_pos;
+      varying vec2 v_uv;
+      void main() {
+        v_uv = vec2((a_pos.x + 1.0) * 0.5, (1.0 - a_pos.y) * 0.5);
+        gl_Position = vec4(a_pos, 0.0, 1.0);
+      }
+    `;
+    const fsSrc = `
+      precision mediump float;
+      varying vec2 v_uv;
+      uniform sampler2D u_tex;
+      void main() {
+        gl_FragColor = texture2D(u_tex, v_uv);
+      }
+    `;
+    const compile = (type, src) => {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : null;
+    };
+    const vs = compile(gl.VERTEX_SHADER, vsSrc);
+    const fs = compile(gl.FRAGMENT_SHADER, fsSrc);
+    const prog = gl.createProgram();
+    if (vs && fs && prog) {
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        gl.useProgram(prog);
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, "a_pos");
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 320, 240, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.viewport(0, 0, lcdCanvas.width, lcdCanvas.height);
+
+        lcdGl = gl;
+        lcdGlTex = tex;
+        const badge = document.getElementById("gpu-mode");
+        if (badge) badge.textContent = isWebGL2 ? "WebGL2 GPU" : "WebGL GPU";
+        return;
+      }
+    }
+  }
+  lcdCtx2d = lcdCanvas.getContext("2d");
+  lcdImgData = lcdCtx2d.createImageData(320, 240);
+  const badge = document.getElementById("gpu-mode");
+  if (badge) badge.textContent = "Canvas2D";
+}
+
+function renderLcdFrame(rgbaPtr) {
+  if (lcdGl) {
+    const pixels = new Uint8Array(M.HEAPU8.buffer, rgbaPtr, 320 * 240 * 4);
+    lcdGl.texSubImage2D(lcdGl.TEXTURE_2D, 0, 0, 0, 320, 240, lcdGl.RGBA, lcdGl.UNSIGNED_BYTE, pixels);
+    lcdGl.drawArrays(lcdGl.TRIANGLE_STRIP, 0, 4);
+  } else if (lcdCtx2d) {
+    const src = new Uint8ClampedArray(M.HEAPU8.buffer, rgbaPtr, 320 * 240 * 4);
+    lcdImgData.data.set(src);
+    lcdCtx2d.putImageData(lcdImgData, 0, 0);
+  }
+}
+
+initLcdRenderer();
+
+function writeBytesToWasm(uint8, fn, extraArgs = []) {
+  const ptr = M._malloc(uint8.length);
+  M.HEAPU8.set(uint8, ptr);
+  const rc = fn(ptr, uint8.length, ...extraArgs);
+  M._free(ptr);
+  return rc;
+}
+
+function parseFilenameKeyHint(name) {
+  const m = /^EC(\d{3})(\d{3})\.bin$/i.exec(name.trim());
+  if (!m) return -1;
+  return (parseInt(m[1], 10) * 1000 + parseInt(m[2], 10)) & 0xFF;
+}
+
+function setLoadedSummary(text) {
+  const el = document.getElementById("loaded-summary");
+  if (el) el.textContent = text;
+}
+
+// What runs: the Controller and ECU images by origin (the site's default firmware, or files the user dropped).
+const FW = { ct: null, ecu: null, ecuDefault: false, defaultNote: null };
+const isCtName = (u) => (u.startsWith("CT") || u.includes("PHOENIX_CT") || u.endsWith("_CT_PROG.BIN")) &&
+                        (u.endsWith(".BIN") || u.endsWith(".HEX"));
+const isEcuName = (u) => !isCtName(u) && (u.endsWith("_BFLASH.BIN") || u.endsWith("_PFLASH.BIN") || u.endsWith(".FLAT") ||
+                         ((u.startsWith("EC") || u.includes("PHOENIX_EC")) && (u.endsWith(".BIN") || u.endsWith(".HEX"))));
+
+function showFirmware() {
+  const fwv = document.getElementById("fw-ver");
+  if (!fwv) return;
+  const ct = FW.ct || "none (drop your own)";
+  const ecu = FW.ecu || "none";
+  fwv.textContent = `ECU: ${ecu} | Controller: ${ct}`;
+  fwv.style.color = FW.ecu ? "var(--green)" : "var(--muted)";
+  const nff = document.getElementById("not-for-flight");
+  if (nff) nff.style.display = FW.ecuDefault ? "" : "none";
+  const note = document.getElementById("fw-default-note");
+  if (note) {
+    note.textContent = FW.ecuDefault && FW.defaultNote ? FW.defaultNote : FW.ecuDefault
+      ? "Running this site's default firmware. Not for flight. Drop your own files to replace it."
+      : (FW.ecu || FW.ct ? "Running the files you supplied." : "No firmware is loaded yet.");
+  }
+}
+
+async function handleFiles(fileList, label, isDefault = false) {
+  if (!M) return;
+  let loadedAny = false;
+  const loadedNames = [];
+  const upperNames = Array.from(fileList, (f) => f.name.toUpperCase());
+  const dropsCt = upperNames.some(isCtName), dropsEcu = upperNames.some(isEcuName);
+  if (dropsCt) { M._s32_wasm_clear_ct(); FW.ct = null; }          // a dropped image replaces, never mixes
+  if (dropsEcu) { M._s32_wasm_clear_ec(); FW.ecu = null; FW.ecuDefault = false; }
+  for (const file of fileList) {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const name = file.name;
+    const upper = name.toUpperCase();
+    if (upper.endsWith(".CSV")) {
+      const text = new TextDecoder().decode(buf);
+      parseDatalogCsv(text, name);
+      continue;
+    }
+    if ((upper.startsWith("CT") || upper.includes("PHOENIX_CT") || upper.endsWith("_CT_PROG.BIN")) &&
+        (upper.endsWith(".BIN") || upper.endsWith(".HEX"))) {
+      const rc = writeBytesToWasm(buf, M._s32_wasm_load_ct_firmware);
+      if (rc > 0) {
+        loadedNames.push(name);
+        loadedAny = true;
+      }
+    } else if (upper.endsWith(".FLAT")) {                      // application only: the ECUs start it directly
+      writeBytesToWasm(buf, M._s32_wasm_load_ec_pflash);
+      loadedNames.push(name);
+      loadedAny = true;
+    } else if (upper.endsWith("_BFLASH.BIN")) {
+      writeBytesToWasm(buf, M._s32_wasm_load_ec_bflash);
+      loadedNames.push(name);
+      loadedAny = true;
+    } else if (upper.endsWith("_PFLASH.BIN")) {
+      writeBytesToWasm(buf, M._s32_wasm_load_ec_pflash);
+      loadedNames.push(name);
+      loadedAny = true;
+    } else if ((upper.startsWith("EC") || upper.includes("PHOENIX_EC")) &&
+               (upper.endsWith(".BIN") || upper.endsWith(".HEX"))) {
+      const hint = parseFilenameKeyHint(name);
+      const key = writeBytesToWasm(buf, M._s32_wasm_load_ec_firmware, [hint]);
+      if (key >= 0) {
+        loadedNames.push(name);
+        loadedAny = true;
+      }
+    } else if (upper.endsWith(".FRAM") || upper.endsWith(".CFG")) {
+      if (upper.includes("CT") || upper.includes("CONTROLLER")) {
+        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(0, p, n));
+      } else if (upper.includes("ECU2") || upper.includes("E2")) {
+        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(2, p, n));
+      } else if (upper.includes("ECU1") || upper.includes("E1")) {
+        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(1, p, n));
+      } else {
+        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(1, p, n));
+        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(2, p, n));
+      }
+      loadedNames.push(name);
+      loadedAny = true;
+    } else if (upper.endsWith(".IMG") || upper.endsWith(".FAT")) {
+      writeBytesToWasm(buf, M._s32_wasm_load_sd);
+      loadedNames.push(name);
+      loadedAny = true;
+    }
+  }
+  if (loadedAny) {
+    setLoadedSummary(`Loaded: ${loadedNames.join(", ")}`);
+    const who = label || "user-supplied";
+    if (dropsCt) FW.ct = who;
+    if (dropsEcu) { FW.ecu = who; FW.ecuDefault = isDefault; }
+    showFirmware();
+    rebootSystem();
+    renderMapTable();
+  }
+}
+
+const NO_FIRMWARE_MSG = "No firmware loaded. Drop your own Controller + ECU .bin/.hex (and optional .fram) files to start.";
+const ECU_ONLY_MSG = "Running: ECUs only (no Controller image loaded; drop one to see the panel)";
+
+function rebootSystem() {
+  if (!M) return;
+  const cyl = parseInt(document.getElementById("sel-cyl").value, 10) || 6;
+  const mag1 = parseFloat(document.getElementById("in-mag1").value) || 80;
+  const mag2 = parseFloat(document.getElementById("in-mag2").value) || 77;
+  const rc = M._s32_wasm_boot(cyl, mag1, mag2);
+  if (rc === 0) {
+    updateEngine();
+    updateSensors();
+    updateSwitches(0);
+    updateSwitches(1);
+    updateTpsFault();
+    document.getElementById("status-dot").className = "dot live";
+    document.getElementById("status-text").textContent = M._s32_wasm_have_ct() ? "Running" : ECU_ONLY_MSG;
+  } else {
+    document.getElementById("status-dot").className = "dot warn";
+    document.getElementById("status-text").textContent = NO_FIRMWARE_MSG;
+  }
+}
+
+function setSimSpeed(s) {
+  simSpeed = s;
+  for (let i = 0; i <= 3; i++) {
+    document.getElementById("spd-" + i).classList.toggle("active", i === s);
+  }
+}
+
+function setRpmPreset(rpm) {
+  document.getElementById("sl-rpm").value = String(rpm);
+  updateEngine();
+}
+
+function setCruisePreset() {
+  document.getElementById("sl-rpm").value = "2400";
+  document.getElementById("sl-map").value = "24.0";
+  document.getElementById("sl-tps").value = "55";
+  updateEngine();
+  updateSensors();
+}
+
+function setTakeoffPreset() {
+  document.getElementById("sl-rpm").value = "2700";
+  document.getElementById("sl-map").value = "29.0";
+  document.getElementById("sl-tps").value = "100";
+  updateEngine();
+  updateSensors();
+}
+
+function injectFailoverPreset() {
+  document.getElementById("sw-e1-pwr").checked = false;
+  document.getElementById("sw-e2-pwr").checked = true;
+  document.getElementById("sw-e2-inj").checked = true;
+  document.getElementById("sel-e2-tps").value = "float";
+  document.getElementById("sl-rpm").value = "1800";
+  updateSwitches(0);
+  updateSwitches(1);
+  updateTpsFault();
+  updateEngine();
+}
+
+function clearFaultsPreset() {
+  document.getElementById("sw-e1-pwr").checked = true;
+  document.getElementById("sw-e2-pwr").checked = true;
+  document.getElementById("sw-e1-lnk").checked = true;
+  document.getElementById("sw-e2-lnk").checked = true;
+  document.getElementById("sel-e2-tps").value = "none";
+  document.getElementById("sl-noise").value = "0";
+  updateSwitches(0);
+  updateSwitches(1);
+  updateTpsFault();
+  updateSensors();
+}
+
+function updateTpsFault() {
+  if (!M) return;
+  const mode = document.getElementById("sel-e2-tps").value;
+  if (mode === "float") {
+    M._s32_wasm_set_tps_fault(1, 512, 30);
+  } else if (mode === "gnd") {
+    M._s32_wasm_set_tps_fault(1, 0, 0);
+  } else if (mode === "5v") {
+    M._s32_wasm_set_tps_fault(1, 1023, 0);
+  } else {
+    M._s32_wasm_set_tps_fault(1, -1, 0);
+    updateSensors();
+  }
+}
+
+function updateEngine() {
+  if (!M) return;
+  const rpm = parseFloat(document.getElementById("sl-rpm").value) || 0;
+  const cyl = parseInt(document.getElementById("sel-cyl").value, 10) || 6;
+  const mag1 = parseFloat(document.getElementById("in-mag1").value) || 80;
+  const mag2 = parseFloat(document.getElementById("in-mag2").value) || 77;
+  document.getElementById("val-rpm").textContent = `${rpm} RPM`;
+  M._s32_wasm_set_cylinders(cyl, mag1, mag2);
+  M._s32_wasm_set_rpm(rpm);
+  highlightActiveMapCell();
+}
+
+function onManualAfrSlide() {
+  afrManualOverride = true;
+  document.getElementById("btn-afr-auto").style.display = "inline-block";
+  updateSensors();
+}
+
+function resetAfrAuto() {
+  afrManualOverride = false;
+  document.getElementById("btn-afr-auto").style.display = "none";
+  updateSensors();
+}
+
+function updateSensors() {
+  if (!M) return;
+  const map = parseFloat(document.getElementById("sl-map").value);
+  const tps = parseFloat(document.getElementById("sl-tps").value);
+  const noise = parseInt(document.getElementById("sl-noise").value, 10);
+  const iat = parseFloat(document.getElementById("sl-iat").value);
+  const et = parseFloat(document.getElementById("sl-et").value);
+  const batt1 = parseFloat(document.getElementById("sl-batt1").value);
+  const batt2 = parseFloat(document.getElementById("sl-batt2").value);
+  const afrSlide = parseFloat(document.getElementById("sl-afr").value);
+
+  document.getElementById("val-map").textContent = `${map.toFixed(1)} inHg`;
+  document.getElementById("val-tps").textContent = `${tps.toFixed(0)} %`;
+  document.getElementById("val-noise").innerHTML = `&plusmn;${noise} counts`;
+  document.getElementById("val-iat").innerHTML = `${iat.toFixed(0)} &deg;F`;
+  document.getElementById("val-et").innerHTML = `${et.toFixed(0)} &deg;F`;
+  document.getElementById("val-batt1").textContent = `${batt1.toFixed(1)} V`;
+  document.getElementById("val-batt2").textContent = `${batt2.toFixed(1)} V`;
+  if (afrManualOverride) {
+    document.getElementById("val-afr").textContent = `${afrSlide.toFixed(1)} (Manual)`;
+  }
+
+  M._s32_wasm_set_sensors(map, tps, iat, et, batt1, batt2, noise, afrManualOverride ? afrSlide : -1.0);
+  highlightActiveMapCell();
+}
+
+function updateSwitches(k) {
+  if (!M) return;
+  const pfx = k === 0 ? "sw-e1-" : "sw-e2-";
+  const pwr = document.getElementById(pfx + "pwr").checked ? 1 : 0;
+  const pld = document.getElementById(pfx + "pld").checked ? 1 : 0;
+  const inj = document.getElementById(pfx + "inj").checked ? 1 : 0;
+  const ret = document.getElementById(pfx + "ret").checked ? 1 : 0;
+  M._s32_wasm_set_switches(k, pld, inj, ret, pwr);
+  M._s32_wasm_set_link(k, document.getElementById(pfx + "lnk").checked ? 1 : 0);
+}
+
+const btnDownWall = [0, 0, 0, 0];
+
+function flushUiStep(quanta) {
+  if (!M || simSpeed === 0) return;
+  M._s32_wasm_step_quanta(quanta);
+  renderLcdFrame(M._s32_wasm_render_rgba());
+  lastFrameWall = performance.now();
+}
+
+function btnHold(btn, pressed) {
+  if (!M) return;
+  if (pressed) {
+    btnDownWall[btn & 3] = performance.now();
+    M._s32_wasm_button(btn, 1);
+  } else {
+    const heldWallMs = performance.now() - (btnDownWall[btn & 3] || 0);
+    btnDownWall[btn & 3] = 0;
+    M._s32_wasm_button(btn, 0);
+    if (heldWallMs > 0 && heldWallMs < 350) {
+      flushUiStep(1300);
+    }
+  }
+}
+
+function pulseMask(mask, ms) {
+  if (!M) return;
+  M._s32_wasm_button_pulse(mask, ms);
+}
+
+function turnKnob(steps) {
+  if (!M) return;
+  M._s32_wasm_encoder_turn(steps);
+  flushUiStep(1100);
+}
+
+/* Map Inspector / Editor */
+let mapAxes = { rpms: [], maps: [] };
+
+function selectMapTab(isFuel) {
+  activeMapIsFuel = isFuel ? 1 : 0;
+  document.getElementById("map-btn-fuel").classList.toggle("active", activeMapIsFuel === 1);
+  document.getElementById("map-btn-ign").classList.toggle("active", activeMapIsFuel === 0);
+  renderMapTable();
+}
+
+function renderMapTable() {
+  if (!M) return;
+  /* ECU1's table as its FRAM chip holds it, decoded by the emulator through the documented FRAM layout. */
+  const t = JSON.parse(M.UTF8ToString(M._s32_wasm_get_map_json(0, activeMapIsFuel)));
+  if (!t.nrows || !t.ncols) return;
+  const nRows = t.nrows;
+  const nCols = t.ncols;
+  const rpms = t.rpm;
+  const maps = t.map_inhg;
+  mapAxes = { rpms, maps };
+
+  let html = `<table class="map-tbl"><thead><tr><th>RPM \\ MAP (inHg)</th>`;
+  for (let c = 0; c < nCols; c++) html += `<th>${maps[c].toFixed(0)}</th>`;
+  html += `</tr></thead><tbody>`;
+  for (let r = 0; r < nRows; r++) {
+    html += `<tr><th>${rpms[r]}</th>`;
+    for (let c = 0; c < nCols; c++) {
+      const val = t.cells[r][c];
+      html += `<td id="mcell-${r}-${c}"><input class="cell-in" type="number" min="0" max="255" value="${val}" onchange="onEditMapCell(${r},${c},this.value)" /></td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  document.getElementById("map-table-container").innerHTML = html;
+  highlightActiveMapCell();
+  /* Each ECU's write state for the viewed table, including a write that was not acknowledged. */
+  const say = (e) => {
+    const tally = e.sent ? `${e.sent} sent, ${e.acked} acknowledged` : "no writes yet";
+    if (e.pending) return `a write is on the wire (${tally})`;
+    if (e.last_result === 1) return `last write acknowledged (${tally})`;
+    if (e.last_result === -1) return `last write refused by the ECU (${tally})`;
+    if (e.last_result === -2) return `a write was not acknowledged (${tally})`;
+    return tally;
+  };
+  const ws = [0, 1].map((k) => JSON.parse(M.UTF8ToString(M._s32_wasm_get_map_json(k, activeMapIsFuel))));
+  document.getElementById("map-write-status").textContent = `Link writes this boot -- ECU1: ${say(ws[0])}; ECU2: ${say(ws[1])}`;
+}
+
+function onEditMapCell(r, c, valStr) {
+  if (!M) return;
+  const v = parseInt(valStr, 10);
+  if (isNaN(v)) return;
+  /* Before boot: edits the FRAM images. Running: sent to both ECUs as link table writes; the view re-reads the FRAM
+   * chip once the ECUs have stored it. */
+  if (M._s32_wasm_set_map_cell(3, activeMapIsFuel, r, c, v) === 1) setTimeout(renderMapTable, 1500);
+}
+
+function highlightActiveMapCell() {
+  const { rpms, maps } = mapAxes;
+  if (!rpms.length || !maps.length) return;
+  const curRpm = parseFloat(document.getElementById("sl-rpm").value) || 0;
+  const curMap = parseFloat(document.getElementById("sl-map").value) || 0;
+  let bestR = 0, bestC = 0;
+  for (let r = 0; r < rpms.length; r++) {
+    if (Math.abs(rpms[r] - curRpm) <= Math.abs(rpms[bestR] - curRpm)) bestR = r;
+  }
+  for (let c = 0; c < maps.length; c++) {
+    if (Math.abs(maps[c] - curMap) <= Math.abs(maps[bestC] - curMap)) bestC = c;
+  }
+  document.querySelectorAll("table.map-tbl td.active-cell").forEach(el => el.classList.remove("active-cell"));
+  const cell = document.getElementById(`mcell-${bestR}-${bestC}`);
+  if (cell) cell.classList.add("active-cell");
+}
+
+/* Datalog CSV Replay */
+function parseDatalogCsv(text, name) {
+  const lines = text.split(/\r?\n/);
+  const rows = [];
+  for (const line of lines) {
+    const p = line.trim().split(",");
+    if (p.length < 24 || p[0] === "Date" || !/^\d/.test(p[2])) continue;
+    const rpm1  = parseFloat(p[2]);
+    const map1  = parseFloat(p[4]);
+    const iat1  = parseFloat(p[6]);
+    const tps   = parseFloat(p[8]);
+    const et    = parseFloat(p[9]);
+    const afr   = parseFloat(p[10]);
+    const batt1 = parseFloat(p[11]);
+    const batt2 = parseFloat(p[12]);
+    const ff    = parseFloat(p[21]);
+    const trim  = parseFloat(p[22]);
+    const duty  = parseFloat(p[23]);
+    const ign   = parseFloat(p[24]);
+    if (!isNaN(rpm1) && !isNaN(map1)) {
+      rows.push({
+        time: p[1],
+        rpm1,
+        map1,
+        iat1,
+        tps,
+        et,
+        afr: !isNaN(afr) ? afr : -1,
+        batt1: !isNaN(batt1) ? batt1 : 14.1,
+        batt2: !isNaN(batt2) ? batt2 : (!isNaN(batt1) ? batt1 : 14.1),
+        ff,
+        trim,
+        duty,
+        ign
+      });
+    }
+  }
+  if (!rows.length) return;
+  replayRows = rows;
+  replayIdx = 0;
+  const sl = document.getElementById("sl-rpl");
+  sl.max = String(rows.length - 1);
+  sl.value = "0";
+  sl.disabled = false;
+  applyReplayRow(0);
+}
+
+/* BEGIN generated by scripts/gen_sample_datalog.py: synthetic values, do not hand-edit */
+const DATALOG_COLUMNS = ["Date", "Time", "RPM1", "RPM2", "MAP1", "MAP2", "IAT1", "IAT2", "TPS", "ENGTEMP", "AFR", "BATT1", "BATT2", "PUMP1", "PUMP2", "HP", "TORQUE", "INJ EN1", "INJ EN2", "PLEAD1", "PLEAD2", "FUEL FLOW", "FUEL TRIM", "INJ DUTY", "IGNITION", "T1S1", "T2S2"];
+const SAMPLE_DATALOG_ROWS = [
+  "06/15/2024,10:12:20,2700,2703,29.1,29.0,71,74,100,182,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,24.0,0,32.4,26,Y/Y,Y/Y",
+  "06/15/2024,10:12:21,2704,2706,29.1,29.0,71,74,100,183,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,24.0,0,32.4,26,Y/Y,Y/Y",
+  "06/15/2024,10:12:22,2706,2708,29.1,28.9,71,74,100,184,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,24.0,0,32.4,26,Y/Y,Y/Y",
+  "06/15/2024,10:12:23,2705,2708,29.0,28.9,71,74,100,185,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.9,0,32.3,26,Y/Y,Y/Y",
+  "06/15/2024,10:12:24,2702,2704,29.0,28.9,71,74,100,186,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.9,0,32.3,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:25,2698,2700,29.0,28.9,71,74,100,186,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.2,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:26,2695,2698,29.0,28.9,72,75,100,187,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:27,2694,2696,28.9,28.8,72,75,100,188,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:28,2696,2698,28.9,28.8,72,75,100,189,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:29,2700,2703,28.9,28.8,72,75,100,190,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:30,2704,2706,28.9,28.8,72,75,100,191,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:31,2706,2708,28.8,28.7,72,75,100,192,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:32,2705,2708,28.8,28.7,73,76,100,193,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.8,0,32.1,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:33,2702,2704,28.8,28.7,73,76,100,194,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.7,0,32.0,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:34,2698,2700,28.8,28.6,73,76,100,195,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.7,0,31.9,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:35,2695,2698,28.7,28.6,73,76,100,196,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.9,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:36,2694,2696,28.7,28.6,73,76,100,196,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.8,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:37,2696,2698,28.7,28.6,73,76,100,197,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.8,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:38,2700,2703,28.7,28.6,74,77,100,198,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.9,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:39,2704,2706,28.6,28.5,74,77,100,199,12.4,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.9,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:40,2706,2708,28.6,28.5,74,77,100,200,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.9,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:41,2705,2708,28.6,28.5,74,77,100,201,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.6,0,31.8,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:42,2702,2704,28.6,28.4,74,77,100,202,12.4,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,23.5,0,31.8,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:43,2698,2700,28.5,28.4,74,77,100,203,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.5,0,31.7,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:44,2695,2698,28.5,28.4,75,78,100,204,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.4,0,31.6,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:45,2694,2696,28.5,28.4,75,78,100,204,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.4,0,31.6,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:46,2696,2698,28.5,28.4,75,78,100,205,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.4,0,31.6,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:47,2700,2703,28.4,28.3,75,78,100,206,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.4,0,31.6,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:48,2704,2706,28.4,28.3,75,78,100,207,12.4,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,23.4,0,31.6,27,Y/Y,Y/Y",
+  "06/15/2024,10:12:49,2656,2658,27.5,27.4,75,78,92,208,12.7,14.1,14.0,ON,ON,0,0,ON,OFF,ON,ON,21.6,0,29.2,29,Y/Y,Y/Y",
+  "06/15/2024,10:12:50,2605,2608,26.7,26.6,76,79,84,209,12.9,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,19.9,0,26.9,30,Y/Y,Y/Y",
+  "06/15/2024,10:12:51,2552,2554,25.8,25.7,76,79,76,210,13.1,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,18.3,0,24.6,31,Y/Y,Y/Y",
+  "06/15/2024,10:12:52,2498,2500,24.9,24.8,76,79,68,211,13.3,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,16.7,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:53,2495,2498,24.9,24.8,76,79,68,212,13.3,14.0,13.9,ON,ON,0,0,ON,OFF,ON,ON,16.7,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:54,2494,2496,24.9,24.8,76,79,68,213,13.3,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,16.6,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:55,2496,2498,24.8,24.7,76,79,68,214,13.3,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,16.6,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:56,2500,2503,24.8,24.7,77,80,68,214,13.3,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,16.6,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:57,2504,2506,24.8,24.7,77,80,68,215,13.3,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,16.7,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:58,2506,2508,24.8,24.7,77,80,68,216,13.3,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,16.6,0,22.5,33,Y/Y,Y/Y",
+  "06/15/2024,10:12:59,2505,2508,24.7,24.6,77,80,68,217,13.3,13.9,13.8,ON,ON,0,0,ON,OFF,ON,ON,16.6,0,22.4,33,Y/Y,Y/Y",
+];
+/* END generated by scripts/gen_sample_datalog.py */
+function loadSampleTakeoffReplay() {
+  const sample = [DATALOG_COLUMNS.join(","), ...SAMPLE_DATALOG_ROWS].join("\n");
+  parseDatalogCsv(sample, "Demo_Climb.CSV");
+  replayPlaying = true;
+}
+
+function scrubReplay(val) {
+  const idx = parseInt(val, 10) || 0;
+  applyReplayRow(idx);
+}
+
+function toggleReplayPlay() {
+  if (!replayRows.length) {
+    loadSampleTakeoffReplay();
+    return;
+  }
+  replayPlaying = !replayPlaying;
+}
+
+function applyReplayRow(idx) {
+  if (!replayRows.length || idx < 0 || idx >= replayRows.length) return;
+  replayIdx = idx;
+  const r = replayRows[idx];
+  document.getElementById("sl-rpl").value = String(idx);
+  document.getElementById("sl-rpm").value = String(r.rpm1);
+  document.getElementById("sl-map").value = String(r.map1);
+  document.getElementById("sl-iat").value = String(r.iat1);
+  document.getElementById("sl-et").value = String(r.et);
+  document.getElementById("sl-tps").value = String(r.tps);
+  document.getElementById("sl-batt1").value = String(r.batt1);
+  document.getElementById("sl-batt2").value = String(r.batt2);
+  updateEngine();
+  updateSensors();
+  document.getElementById("rpl-status").textContent = `Row ${idx + 1}/${replayRows.length} (${r.time}): ${r.rpm1} RPM, ${r.map1.toFixed(1)} inHg`;
+  document.getElementById("rpl-logged").textContent = `Logged: ${r.ff.toFixed(1)} GPH (${r.duty.toFixed(1)}% duty, IGN ${r.ign}°, Trim ${r.trim >= 0 ? "+" : ""}${r.trim}%)`;
+}
+
+document.getElementById("knob-wheel").addEventListener("wheel", (e) => {
+  e.preventDefault();
+  turnKnob(e.deltaY < 0 ? 1 : -1);
+}, { passive: false });
+
+const dz = document.getElementById("dropzone");
+dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("dragover"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
+dz.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dz.classList.remove("dragover");
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+
+function renderTelemetry(t) {
+  document.getElementById("sim-time").textContent = `${t.time_s.toFixed(2)}s`;
+  document.getElementById("sim-rate").textContent = `${measuredRate.toFixed(2)}×`;
+  document.getElementById("sim-trim").textContent = `${t.trim_pct[0] >= 0 ? "+" : ""}${t.trim_pct[0]}%`;
+  document.getElementById("sim-gph").textContent = `${t.fuel_gph.toFixed(1)} GPH`;
+  if (typeof t.afr === "number") {
+    document.getElementById("sim-afr").textContent = t.afr.toFixed(1);
+    if (!afrManualOverride) {
+      document.getElementById("sl-afr").value = t.afr.toFixed(1);
+      document.getElementById("val-afr").textContent = `${t.afr.toFixed(1)} (Auto)`;
+    }
+  }
+
+  let html = "";
+  for (let k = 0; k < 2; k++) {
+    const e = t.ecu[k];
+    const st = !e.powered ? `<span style="color:var(--red)">OFFLINE</span>`
+             : e.err ? `<span style="color:var(--red)">ERR ${e.err}</span>`
+             : `<span style="color:var(--green)">ONLINE</span>`;
+    html += `
+      <div class="telem-ecu">
+        <h3><span>ECU ${k + 1}</span>${st}</h3>
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);">
+          <span>CT&rarr;ECU: <strong style="color:var(--text)">${e.ct_to_ecu}</strong></span>
+          <span>ECU&rarr;CT: <strong style="color:var(--text)">${e.ecu_to_ct}</strong></span>
+          <span>Duty / Trim: <strong style="color:var(--accent)">${t.duty_pct[k].toFixed(1)}% / ${t.trim_pct[k] >= 0 ? "+" : ""}${t.trim_pct[k]}%</strong></span>
+        </div>
+        <table class="telem-tbl">
+          <thead><tr><th>Ignition Coil</th><th>Sparks</th><th>Dwell</th><th>Advance</th></tr></thead>
+          <tbody>
+            ${e.coils.map((c, i) => `
+              <tr>
+                <td>Coil ${i + 1} (Cyl ${i*2+1}/${i*2+2})</td>
+                <td>${c.sparks}</td>
+                <td>${c.dwell_ms.toFixed(2)} ms</td>
+                <td>${c.adv_deg.toFixed(1)}&deg; BTDC</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        <table class="telem-tbl" style="margin-top:6px;">
+          <thead><tr><th>Injector</th><th>Pulses</th><th>Pulse Width</th><th>Duty (@ ${t.rpm} RPM)</th></tr></thead>
+          <tbody>
+            ${e.inj.slice(0, t.ncyl).map((inj, i) => {
+              const revMs = t.rpm > 0 ? (60000 / t.rpm) : 0;
+              const duty = revMs > 0 ? (inj.width_ms / revMs * 100) : 0;
+              return `
+                <tr>
+                  <td>Cyl ${i + 1}</td>
+                  <td>${inj.pulses}</td>
+                  <td>${inj.width_ms.toFixed(3)} ms</td>
+                  <td>${duty.toFixed(1)}%</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  document.getElementById("telem-container").innerHTML = html;
+
+  const con1 = M.UTF8ToString(M._s32_wasm_get_ecu_console(0));
+  if (con1) document.getElementById("ecu-console").textContent = con1.trim();
+}
+
+let frameCounter = 0;
+function tick() {
+  const now = performance.now();
+  const dtMs = Math.min(50, Math.max(1, now - lastFrameWall));
+  lastFrameWall = now;
+
+  if (M && simSpeed > 0) {
+    const quanta = simSpeed === 1 ? Math.round(dtMs * 10)
+                 : simSpeed === 2 ? Math.round(dtMs * 20)
+                 : 500;
+    const t0 = performance.now();
+    M._s32_wasm_step_quanta(quanta);
+    const elapsedWall = Math.max(0.5, performance.now() - t0);
+    const simAdvMs = quanta * 0.1;
+    measuredRate = 0.85 * measuredRate + 0.15 * (simAdvMs / elapsedWall);
+
+    const rgbaPtr = M._s32_wasm_render_rgba();
+    renderLcdFrame(rgbaPtr);
+
+    if (++frameCounter % 6 === 0) {
+      const telem = JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json()));
+      renderTelemetry(telem);
+      if (replayPlaying && replayRows.length > 0 && telem.time_s - lastReplayStepSim >= 1.0) {
+        lastReplayStepSim = telem.time_s;
+        applyReplayRow((replayIdx + 1) % replayRows.length);
+      }
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+// Default firmware. The manifest names the files, their SHA-256 and, optionally, how the page labels them ("label",
+// "note"): the emulator repository's `make bench-site` writes one for the stock v86 update files, which are FlyEFII's
+// copyright and come from release assets (firmware/manifest.json, firmware/LICENSE-FIRMWARE). A site that serves this
+// page may write its own firmware/manifest.json next to it. With no manifest nothing is loaded: bring your own
+// firmware. Each file is checked against its SHA-256 before anything is loaded; if any check fails, nothing is loaded.
+// Dropping your own files replaces these.
+async function loadDefaultFirmware() {
+  let manifest;
+  try {
+    const r = await fetch("firmware/manifest.json", { cache: "no-cache" });
+    if (!r.ok) return;
+    manifest = await r.json();
+  } catch (e) { return; }
+  const files = [];
+  for (const f of manifest.files) {
+    const r = await fetch("firmware/" + encodeURIComponent(f.name), { cache: "no-cache" });
+    if (!r.ok) throw new Error(f.name + ": HTTP " + r.status);
+    const buf = await r.arrayBuffer();
+    if (!(window.crypto && crypto.subtle)) throw new Error("no SubtleCrypto here (use https or localhost) to check " + f.name);
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buf)), (b) => b.toString(16).padStart(2, "0")).join("");
+    if (digest !== f.sha256) throw new Error(f.name + ": SHA-256 does not match the manifest");
+    files.push(new File([buf], f.name));
+  }
+  const ver = manifest.version ? ` ${manifest.version}` : "";
+  FW.defaultNote = manifest.note || null;
+  const label = manifest.label || `default firmware${ver}` + (manifest.source_commit ? ` (build ${String(manifest.source_commit).slice(0, 12)})` : "");
+  await handleFiles(files, label, true);
+  // With no configuration files dropped the ECUs' configuration chips are blank: on its first power-up the firmware
+  // writes its default settings into them (as on a new ECU) and starts firing from the next. Run that first power-up
+  // (2 s) and power-cycle once, so the bench starts configured.
+  // The firmware's default configuration is a 4-cylinder engine: match the crank wheel to it (6 is the page's default
+  // for dropped IO-540 configurations).
+  document.getElementById("sel-cyl").value = "4";
+  if (M._s32_wasm_step_quanta(20000) === 0) rebootSystem();
+}
+
+createS32Module().then((mod) => {
+  M = mod;
+  document.getElementById("status-dot").className = "dot warn";
+  document.getElementById("status-text").textContent = NO_FIRMWARE_MSG;
+  requestAnimationFrame(tick);
+  loadDefaultFirmware().catch((e) => {
+    document.getElementById("status-text").textContent = "Default firmware refused: " + e.message + ". " + NO_FIRMWARE_MSG;
+  });
+});
+</script>
+</body>
+</html>

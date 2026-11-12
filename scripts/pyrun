@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# System32 emulator -- the one way to run Python that needs third-party packages.
+#
+#   scripts/pyrun [python3 arguments ...]     e.g. scripts/pyrun -I scripts/sdcard_image.py new card.img 64
+#
+# Runs python3 in the project environment that uv builds from pyproject.toml + uv.lock (.venv at the repository root),
+# with --frozen: exactly the locked versions and hashes, never a new resolution. Inside `nix develop` uv and the
+# interpreter are the flake's pinned ones (UV_PYTHON, UV_PYTHON_DOWNLOADS=never). Scripts that use only the standard
+# library run on plain python3. Exit 127 when uv is not installed; callers treat that as "tool unavailable" (SKIP).
+set -euo pipefail
+REPO="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -f "$REPO/pyproject.toml" ] && [ -f "$REPO/uv.lock" ] || { echo "scripts/pyrun: no pyproject.toml / uv.lock in $REPO" >&2; exit 2; }
+if ! command -v uv >/dev/null 2>&1; then
+  echo "scripts/pyrun: uv not found (run inside 'nix develop', or install uv; README.md)" >&2
+  exit 127
+fi
+if [ -n "${S32_PYRUN_LIBRARY_PATH:-}" ]; then          # set by the Linux dev shell (flake.nix)
+  export LD_LIBRARY_PATH="$S32_PYRUN_LIBRARY_PATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+exec uv run --quiet --frozen --project "$REPO" python3 "$@"

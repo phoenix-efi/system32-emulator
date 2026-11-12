@@ -1,0 +1,24 @@
+FIRMWARE NOTICE -- NOT COVERED BY THE APACHE LICENSE
+
+The files named in firmware/manifest.json ("files": CT086001.bin and
+EC086001.bin, the EFII System32 v86 build 001 update files for the
+Cockpit Controller and the ECU) are the copyright of FlyEFII
+(Protek Performance). All rights in them belong to their owner.
+
+  * They are not part of this repository's source and are never
+    committed to it. They are published separately, unmodified, as
+    release assets, and are fetched and checked by SHA-256
+    (scripts/fetch_firmware.py).
+  * The Apache License 2.0 in LICENSE does not apply to them, nor to
+    the images derived from them (firmware/manifest.json "derived").
+    Nothing in this repository grants any licence to them.
+  * They are provided so that the emulator can show the stock system
+    behaving as shipped. They are not offered for installation in any
+    aircraft, and this project gives no warranty of any kind for them.
+
+Questions about the firmware itself go to its owner, not to this
+project.
+
+If you are the copyright owner and want these files withdrawn, open an
+issue or contact the maintainers; the release assets will be removed
+and the emulator will load no firmware by default.

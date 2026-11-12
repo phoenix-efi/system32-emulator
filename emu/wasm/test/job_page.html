@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- One emulator job in a real browser (scripts/browser_job.py drives it headlessly): the same steps as
+     test/run_job.mjs, on the module the bench page loads (s32_wasm.js), files fetched from the local server that
+     serves this page. Not part of the published site. -->
+<html><head><meta charset="utf-8"><title>emulator job</title></head>
+<body><pre id="out">running</pre>
+<script src="s32_wasm.js"></script>
+<script type="module">
+let job, M;
+async function bytes(url) { return new Uint8Array(await (await fetch(url)).arrayBuffer()); }
+function load(buf, fn, ...extra) {
+  const ptr = M._malloc(buf.length);
+  M.HEAPU8.set(buf, ptr);
+  const rc = fn(ptr, buf.length, ...extra);
+  M._free(ptr);
+  return rc;
+}
+async function run() {
+  job = await (await fetch("job.json")).json();
+  M = await createS32Module();               /* the classic-script global from s32_wasm.js (MODULARIZE) */
+  if (load(await bytes(job.ct), M._s32_wasm_load_ct_firmware) < 0) return { rc: 2, error: "Controller image refused" };
+  if (job.bfl && load(await bytes(job.bfl), M._s32_wasm_load_ec_bflash) < 0) return { rc: 2, error: "boot flash refused" };
+  if (load(await bytes(job.pfl), M._s32_wasm_load_ec_pflash) < 0) return { rc: 2, error: "program flash refused" };
+  const fram = job.fram || {};
+  for (const [k, target] of [["ct", 0], ["e1", 1], ["e2", 2]]) {
+    if (fram[k]) load(await bytes(fram[k]), (p, n) => M._s32_wasm_load_fram(target, p, n));
+    else M._s32_wasm_clear_fram(target);
+  }
+  if (job.ct_sd) load(await bytes(job.ct_sd), M._s32_wasm_load_sd);
+  const orderPtr = M._s32_wasm_knob_names();
+  if (!orderPtr) return { rc: 2, error: `knob names: ${M.UTF8ToString(M._s32_wasm_knob_error())}` };
+  const order = JSON.parse(M.UTF8ToString(orderPtr));
+  const knobs = [...(job.knobs || [])].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]));
+  for (const [name, value] of knobs) {
+    if (M.ccall("s32_wasm_knob", "number", ["string", "string"], [name, value]))
+      return { rc: 2, error: `knob ${name}: ${M.UTF8ToString(M._s32_wasm_knob_error())}` };
+  }
+  M._s32_wasm_trace_enable(job.trace ? 1 : 0);
+  if (M._s32_wasm_boot_plain()) return { rc: 2, error: "boot failed" };
+  const quanta = Math.trunc(job.secs * 1e6 / 100);
+  let traceBytes = 0;
+  const t0 = performance.now();
+  for (let done = 0; done < quanta;) {
+    const n = Math.min(1000, quanta - done);
+    if (M._s32_wasm_step_quanta(n)) return { rc: 2, error: "step failed" };
+    done += n;
+    traceBytes += M._s32_wasm_trace_len();
+    M._s32_wasm_trace_clear();              /* the module's own SHA-256 covers every byte; the page keeps none */
+  }
+  const wall = (performance.now() - t0) / 1000;
+  const sha = job.trace ? M.UTF8ToString(M._s32_wasm_trace_finish()) : null;
+  traceBytes += M._s32_wasm_trace_len();
+  return { rc: 0, secs: job.secs, wall_s: wall, x_real_time: job.secs / wall, trace_sha256: sha, trace_bytes: traceBytes,
+           user_agent: navigator.userAgent };
+}
+let r;
+try { r = await run(); } catch (e) { r = { rc: 2, error: String(e) }; }
+window.JOB_RESULT = r;
+document.getElementById("out").textContent = JSON.stringify(r);
+</script></body></html>

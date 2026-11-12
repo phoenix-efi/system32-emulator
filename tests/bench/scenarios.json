@@ -1,0 +1,12 @@
+{
+  "about": "Fixed emulator scenarios for the speed benchmark (scripts/bench.py, make bench) and the conformance gate (scripts/conformance.py, make conformance), in the case format of scripts/s32case.py.",
+  "scenarios": [
+    {"name": "boot", "about": "power-on to the home page, engine stopped, the firmware directory's default ECU configuration",
+     "stimulus": {"preset": "default", "secs": 8}},
+    {"name": "cruise", "about": "2400 RPM, 24.0 inHg, four cylinders (the default configuration), 30 s",
+     "stimulus": {"preset": "default", "secs": 30, "knobs": {"S32_CYL": "4", "S32_RPM": "2400", "S32_START": "2", "S32_AN": "5=900,9=600"}}},
+    {"name": "fault", "about": "stray crank-sensor pulses at 2400 RPM",
+     "stimulus": {"preset": "default", "secs": 12, "knobs": {"S32_CYL": "4", "S32_RPM": "2400", "S32_START": "2", "S32_AN": "5=900",
+       "S32_CRANK_EMI": "1:40@5-9"}}}
+  ]
+}

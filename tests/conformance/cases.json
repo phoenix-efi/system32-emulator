@@ -1,0 +1,27 @@
+{
+  "about": "The emulator's own conformance stimuli (scripts/conformance.py, format in scripts/s32case.py). Each runs on the firmware directory you supply (make firmware writes one for the stock v86 images) and must give a byte-identical canonical trace on every build. They exercise the hardware model, not any firmware behaviour: no case judges what the firmware does. A firmware project adds its own cases through --provider (docs/conformance.md).",
+  "cases": [
+    {"name": "first-power-up", "about": "every configuration chip blank: the firmware's first power-up writes its defaults (FRAM write path)",
+     "stimulus": {"preset": "blank", "secs": 3}},
+    {"name": "boot-home", "about": "power-on to the Controller's home page and 2 s after it, engine stopped",
+     "stimulus": {"preset": "default", "secs": "{H+2}"}},
+    {"name": "cruise", "about": "2400 RPM, MAP and TPS counts, four cylinders (the default configuration)",
+     "stimulus": {"preset": "default", "secs": 12, "knobs": {"S32_CYL": "4", "S32_RPM": "2400", "S32_START": "2", "S32_AN": "5=900,9=600"}}},
+    {"name": "rpm-profile", "about": "start, run-up, cut: engine speed steps and crank-sensor jitter",
+     "stimulus": {"preset": "default", "secs": 12, "knobs": {"S32_CYL": "4", "S32_RPM_AT": "2=250,3=1200,6=2700,9=0", "S32_CRANK_JITTER": "3", "S32_AN": "5=700"}}},
+    {"name": "sensor-faults", "about": "crank glitch and drop, MAP short, TPS noise, ET open",
+     "stimulus": {"preset": "default", "secs": 10, "knobs": {"S32_CYL": "4", "S32_RPM": "2200", "S32_START": "2", "S32_AN": "5=850,9=500",
+       "S32_CRANK_GLITCH": "1:4.5", "S32_CRANK_DROP": "2:6.0-6.2", "S32_AN_FAULT": "1:5=gnd@7-8", "S32_TPS_NOISE": "20"}}},
+    {"name": "power-and-link", "about": "ECU2 breaker off and on, a dead link to ECU1, supply sag, retard switch",
+     "stimulus": {"preset": "default", "secs": 12, "knobs": {"S32_CYL": "4", "S32_RPM": "2400", "S32_START": "2", "S32_AN": "5=900",
+       "S32_ECU_POWER": "2:off@5,2:on@7", "S32_ECU_LINK": "1:dead@8-9", "S32_SUPPLY": "1:10.5@9.5", "S32_SWITCH": "10:1:retard=on"}}},
+    {"name": "bezel", "about": "menu, knob and encoder input after the home page (button debounce, encoder steps)",
+     "stimulus": {"preset": "default", "secs": "{H+9}", "knobs": {"S32_INPUT": "{H+1}:menu,{H+2}:edge:-1,{H+2.5}:edge:-1,{H+3.5}:knob,{H+5}:enc:3@300,{H+7}:monitor,{H+8}:monitor"}}},
+    {"name": "ct-sd-card", "about": "a card in the Controller's slot with one text file (SD over SPI, FAT32)",
+     "stimulus": {"preset": "default", "secs": 10, "knobs": {"S32_CYL": "4", "S32_RPM": "2000", "S32_START": "2"},
+                  "cards": {"ct": {"files": {"README.TXT": {"text": "conformance card\r\n"}}}}}},
+    {"name": "fram-carry", "about": "the configuration chips the first power-up wrote, in the next power-up (case: sources)",
+     "stimulus": {"preset": "blank", "secs": 6, "knobs": {"S32_CYL": "4", "S32_RPM": "2400", "S32_START": "2"},
+                  "fram": {"ecu1": "case:first-power-up", "ecu2": "case:first-power-up", "ct": "case:first-power-up"}}}
+  ]
+}

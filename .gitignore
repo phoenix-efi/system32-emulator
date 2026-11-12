@@ -1,0 +1,27 @@
+# Build outputs
+build/
+**/build/
+*.o
+*.a
+*.ppm
+dist/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Nix outputs
+result
+result-*
+
+# Firmware images are never committed. The default firmware (firmware/manifest.json) is FlyEFII's copyright and is
+# fetched from release assets into the cache below (scripts/fetch_firmware.py); your own images stay outside the tree.
+.firmware-cache/
+*.bin
+*.BIN
+*.hex
+*.HEX
+*.flat
+*.fram
+*.FRAM
+*.img

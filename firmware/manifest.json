@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "about": "The default firmware the emulator loads: the stock EFII System32 v86 build 001 update files, unmodified, as FlyEFII distributed them. They are NOT in this repository and NOT covered by its Apache-2.0 licence (firmware/LICENSE-FIRMWARE). scripts/fetch_firmware.py downloads them from the release assets below (or copies them from S32_V86_SRC), refuses any file whose size or SHA-256 differs, and derives the emulator images listed under 'derived', each checked against its SHA-256 too.",
+  "name": "EFII System32 v86 build 001 (stock)",
+  "version": "086001",
+  "copyright": "Copyright FlyEFII (Protek Performance). All rights reserved by the copyright holder.",
+  "license": "firmware/LICENSE-FIRMWARE: not Apache-2.0; redistributed as release assets only, unmodified",
+  "release": {
+    "tag": "firmware-v86-001",
+    "base_url": "https://github.com/phoenix-efi/system32-emulator/releases/download/firmware-v86-001/"
+  },
+  "files": [
+    {"name": "CT086001.bin", "unit": "Cockpit Controller (PIC24FJ256DA210)", "version": "086", "build": "001",
+     "format": "Intel HEX (plain)", "size": 761019,
+     "sha256": "771c0632f994f4c3bc312a681fa4889a6965204a2c2d588088790a98ab783697"},
+    {"name": "EC086001.bin", "unit": "ECU (PIC32MX), boot code and application", "version": "086", "build": "001",
+     "format": "Intel HEX, byte-wise obfuscated with a one-byte key (scripts/fetch_firmware.py ec_deobfuscate); the key is recovered from the file itself: it is the one value under which every record is valid Intel HEX", "size": 538874,
+     "sha256": "3a1682d105507f06c70101e779fd81f2da0e7d8dd43168372d7c3f945d95968c"}
+  ],
+  "derived": [
+    {"name": "CT086001_prog.bin", "from": "CT086001.bin", "how": "Controller program memory, PC 0 up to the highest programmed word, 3 bytes per instruction word, 0xFF fill",
+     "size": 262656, "sha256": "f0a8ae42b233e0b7e558291e6d6d2e81b08eb4605a50c12d1876caf438e4695b"},
+    {"name": "v86_ec086001_bflash.bin", "from": "EC086001.bin", "how": "ECU boot flash 0x1FC00000..0x1FC02FFF, 0xFF fill",
+     "size": 12288, "sha256": "5fe9c0fed7e4d4da86481a54b16388a1b2c1cad02bf6b2a7108396475c3592d8"},
+    {"name": "v86_ec086001_pflash.bin", "from": "EC086001.bin", "how": "ECU program flash 0x1D000000 up to the highest programmed byte, 0xFF fill",
+     "size": 524276, "sha256": "c853dd74a1bea6551a23bdf9c9ac0a716ac8eddfb416e08561970b477758ed2a"},
+    {"name": "default_ecu.fram", "from": "EC086001.bin", "how": "the ECU configuration chip after the firmware's first power-up on a blank chip (2 s in the native emulator, no other input)",
+     "size": 131072, "sha256": "fc47224a977d9afdaa43c617c921da02634c7a8c13a82d9186940f3f4dc90a9e"}
+  ],
+  "bench": {
+    "label": "stock v86 build 001 (FlyEFII)",
+    "note": "Running the stock EFII System32 v86 build 001 firmware (Controller and both ECUs), FlyEFII's copyright, loaded from this site's release assets and checked by SHA-256. Not for flight. Drop your own files to replace it."
+  }
+}

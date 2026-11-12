@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: Apache-2.0
+# The Python packages the emulator's scripts and tests use, at exact versions. uv.lock pins every package, including
+# the ones these pull in, by version and SHA-256. Every script that needs one of them runs through scripts/pyrun
+# (`uv run --frozen` against uv.lock); scripts that use only the standard library run on plain python3. The Python
+# interpreter itself, uv, Node, Emscripten and cppcheck are pinned by the Nix flake (nix/tool-versions.txt).
+#
+# Change a pin: edit the version here, run `uv lock` inside `nix develop` (the flake's uv writes a lock file every
+# uv it pins can read), review the uv.lock diff and commit both files.
+[project]
+name = "system32-emulator-tools"
+version = "0"
+description = "Python packages for the System32 emulator's scripts and tests (not a package; nothing is installed from here)"
+requires-python = "==3.12.*"
+dependencies = [
+    "pyfatfs==1.1.0",          # SD card images (scripts/sdcard_image.py): conformance cases, I/O coverage, emulator tests
+    "setuptools==80.10.2",     # pyfatfs's filesystem layer (fs) imports pkg_resources, which setuptools 81 removes
+    "playwright==1.50.0",      # headless Chromium for the browser build (scripts/browser_job.py); matches the
+                               # flake's Chromium (playwright-driver 1.50.x)
+]
+
+[tool.uv]
+package = false

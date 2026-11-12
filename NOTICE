@@ -1,0 +1,24 @@
+System32 Emulator
+Copyright 2026 Phoenix EFI Contributors
+
+Phoenix EFI (replacement firmware for the same hardware) uses this
+emulator.
+
+NON-AFFILIATION & RESEARCH STATUS NOTICE
+
+This emulator is an independently developed, open-source model of the
+EFII System32 hardware (Cockpit Controller and two ECUs). It is not
+affiliated with, endorsed by, or supported by Protek Performance /
+FlyEFII.
+
+FIRMWARE IS NOT PART OF THIS WORK
+
+No firmware image is contained in this repository or covered by its
+Apache-2.0 licence. The stock firmware the emulator loads by default
+(firmware/manifest.json) is the copyright of its owner, FlyEFII, is
+distributed separately as release assets, unmodified, and is subject
+to firmware/LICENSE-FIRMWARE.
+
+Emulator results demonstrate only the behaviour of the model under the
+conditions described. They do not establish airworthiness or
+suitability for use on any aircraft or engine.

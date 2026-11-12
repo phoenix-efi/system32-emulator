@@ -1,0 +1,2847 @@
+{
+ "_comment": "I/O ledger of the target system: one entry per external signal of the ECU board (each of ECU1 and ECU2) and the Cockpit Controller, plus the on-chip modules the firmware touches. Hand-maintained; docs/io-ledger.md is GENERATED from it by scripts/gen_io_ledger_doc.py (make check-generated), and make io-coverage checks it against what the firmware actually touches. Evidence: DATASHEET (Microchip data sheet / DFP), DOCUMENTED (installation manual and drawings, operating procedures), OBSERVED (seen on the emulated system), MEASURED (on hardware), INFERRED (reasoned, not observed). modelled: yes / partial / no.",
+ "schema": 1,
+ "boards": {
+  "ecu": {
+   "mcu": "PIC32MX795F512L",
+   "instances": [
+    "ECU1",
+    "ECU2"
+   ]
+  },
+  "controller": {
+   "mcu": "PIC24FJ256DA210",
+   "instances": [
+    "Controller"
+   ]
+  }
+ },
+ "fault_vocabulary": {
+  "open": "wire or sensor open circuit",
+  "short_gnd": "short to ground",
+  "short_supply": "short to the supply / full scale",
+  "noise": "random noise on the signal",
+  "stuck": "value frozen",
+  "intermittent": "connection making and breaking",
+  "out_of_range": "a value outside the sensor's range",
+  "garbage": "protocol garbage / corrupted bytes on a bus",
+  "missing_edges": "edges not delivered",
+  "extra_edges": "spurious edges",
+  "timing": "edge timing or clock error",
+  "absent": "device not answering",
+  "power_loss": "supply removed",
+  "brownout": "supply sagging below the regulator's drop-out"
+ },
+ "signals": [
+  {
+   "id": "ecu.an.map",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Manifold absolute pressure (MAP), one sensor per ECU",
+   "connector": "engine harness MAP connector (13 / 14), 3-wire sensor on the firewall",
+   "mcu_pins": [
+    "RB5"
+   ],
+   "adc": [
+    "AN5"
+   ],
+   "peripheral": "ADC1 scan (AN5..AN14, SMPI 9, external VREF RA10/RA9)",
+   "direction": "in",
+   "electrical": "ratiometric pressure sensor, 5 V excitation from its ECU; transfer inHg = 3.06 + 0.02674 x raw",
+   "model": "pin counts from the host / replay / live feed through the observed curve; per-sample noise; fault overlay",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 5=raw",
+    "S32_AN_FAULT k:5=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes",
+    "emu/pair/test/io_faults.sh::map_short_gnd_shortens_pulse"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19: two MAP sensors, one for each ECU",
+    "transfer curves observed: pin counts against the values the stock firmware displays"
+   ],
+   "notes": "Open-circuit level of the signal pin not known (no schematic): modelled as 0 counts (INFERRED).",
+   "sfr_modules": []
+  },
+  {
+   "id": "ecu.an.iat",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Intake air temperature (IAT), one sensor per ECU",
+   "connector": "engine harness IAT connector (5 / 6), 2-wire thermistor on the throttle body",
+   "mcu_pins": [
+    "RB6"
+   ],
+   "adc": [
+    "AN6"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "NTC thermistor with board pull-up; deg F = 245 - raw x 100/376 (clamped)",
+   "model": "pin counts through the observed curve; open reads full scale (pull-up)",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 6=raw",
+    "S32_AN_FAULT k:6=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes",
+    "emu/pair/test/io_faults.sh::iat_fault_changes_pulse"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.21: two IAT sensors, both on the throttle body; each ECU reads its own",
+    "transfer curves observed: pin counts against the values the stock firmware displays"
+   ],
+   "notes": "Open = 1023 counts (pull-up) is INFERRED from what the firmware displays with the sensor open, not a schematic.",
+   "sfr_modules": []
+  },
+  {
+   "id": "ecu.an.et",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Engine temperature (ET): wired to ECU1 only",
+   "connector": "engine harness ET connector (3), 2-wire sensor in the right rear cylinder's upper injector port",
+   "mcu_pins": [
+    "RB7"
+   ],
+   "adc": [
+    "AN7"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "NTC thermistor with board pull-up; deg F = 265 - raw x 100/376",
+   "model": "ECU1 reads the sensor; ECU2's input is unconnected (open, full scale) unless S32_ET_WIRING=both",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 7=raw",
+    "S32_ET_WIRING",
+    "S32_AN_FAULT k:7=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::et_wired_to_ecu1_only",
+    "emu/pair/test/io_faults.sh::et_ecu2_open_by_wiring"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.22: the ET sensor is wired to ECU1 only; pre-start checks: ET reads '---' for ECU2",
+    "transfer curves observed: pin counts against the values the stock firmware displays"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.an.o2",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Wideband O2 input on the ECU (AN8)",
+   "connector": "not in the documented harness",
+   "mcu_pins": [
+    "RB8"
+   ],
+   "adc": [
+    "AN8"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "0-5 V analogue input (scaling unknown)",
+   "model": "unconnected input at mid-scale; any count or fault by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 8=raw",
+    "S32_AN_FAULT k:8=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "channel identified on the bench (distinct counts per pin read back on the ECU console)"
+   ],
+   "notes": "The documented wideband input is the Controller's DB-15 pin 3; this ECU channel's wiring is unknown.",
+   "sfr_modules": []
+  },
+  {
+   "id": "ecu.an.tps",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Throttle position (TPS): one sensor shared by both ECUs",
+   "connector": "engine harness TPS connector (4), 3-wire sensor on the throttle shaft",
+   "mcu_pins": [
+    "RB9"
+   ],
+   "adc": [
+    "AN9"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "potentiometer excited by the primary ECU (ECU1); wiper split to both ECUs; % = (raw - 166) / 8",
+   "model": "one physical wiper drives both pins; with the supply ECU unpowered the wiper reads gnd (default) / float / pull-up",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 9=raw",
+    "S32_TPS_NOISE",
+    "S32_TPS_FAULT",
+    "S32_TPS_SUPPLY",
+    "S32_TPS_UNPOWERED",
+    "S32_AN_FAULT k:9=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::tps_shared_supply_unpowered_modes",
+    "emu/pair/test/io_faults.sh::tps_noise_enriches_low_rpm",
+    "emu/pair/test/io_faults.sh::tps_floating_after_ecu1_loss"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.22: the one TPS sensor is read by both ECUs",
+    "transfer curves observed: pin counts against the values the stock firmware displays",
+    "install manual rev 6/19: the TPS is powered by the primary ECU (ECU1)"
+   ],
+   "notes": "The unpowered end state is INFERRED (no bench measurement): S32_TPS_UNPOWERED=gnd is the default, float and pullup bracket it.",
+   "sfr_modules": []
+  },
+  {
+   "id": "ecu.an.trim",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "External fuel-trim input (AN10)",
+   "connector": "not in the documented harness",
+   "mcu_pins": [
+    "RB10"
+   ],
+   "adc": [
+    "AN10"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "0-5 V potentiometer input (used when the external trim source is configured)",
+   "model": "unconnected input at mid-scale; any count or fault by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 10=raw",
+    "S32_AN_FAULT k:10=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "channel identified on the bench; configuration item selects it as the trim source"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.an.batt",
+   "board": "ecu",
+   "category": "power_reset",
+   "name": "ECU supply voltage sense (AN11)",
+   "connector": "ECU +12 V and ground (harness C / D) through the ECU's 5 A breaker",
+   "mcu_pins": [
+    "RB11"
+   ],
+   "adc": [
+    "AN11"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "divider from the ECU's own feed after its input diode: V = 0.04456 raw + 0.22",
+   "model": "follows that ECU's supply voltage (S32_SUPPLY) unless set explicitly",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range",
+    "brownout"
+   ],
+   "knobs": [
+    "S32_SUPPLY",
+    "S32_AN 11=raw",
+    "S32_AN_FAULT k:11=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::batt_follows_supply_curve"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "transfer curves observed: pin counts against the values the stock firmware displays",
+    "install manual rev 6/19, Drawing 9 (switch and breaker wiring)"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.an.baro",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Barometric pressure input (AN12)",
+   "connector": "on-board or unused (no documented sensor)",
+   "mcu_pins": [
+    "RB12"
+   ],
+   "adc": [
+    "AN12"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "analogue input",
+   "model": "mid-scale; any count or fault by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 12=raw",
+    "S32_AN_FAULT k:12=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "channel identified on the bench"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.an.aux",
+   "board": "ecu",
+   "category": "analog_sensor",
+   "name": "Auxiliary analogue inputs AD1 / AD2 (AN13, AN14)",
+   "connector": "not in the documented harness",
+   "mcu_pins": [
+    "RB13",
+    "RB14"
+   ],
+   "adc": [
+    "AN13",
+    "AN14"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "analogue inputs",
+   "model": "mid-scale; any count or fault by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AN 13=raw",
+    "S32_AN_FAULT k:14=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "channels identified on the bench"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.an.vref",
+   "board": "ecu",
+   "category": "power_reset",
+   "name": "ADC reference VREF+ / VREF-",
+   "connector": "board",
+   "mcu_pins": [
+    "RA10",
+    "RA9"
+   ],
+   "peripheral": "ADC1 VCFG = external references",
+   "direction": "in",
+   "electrical": "external reference pins (AD1CON2.VCFG = 011); counts are expressed against the 5 V sensor scale the firmware uses",
+   "model": "ideal reference: counts are set directly (raw = V / 5 x 1023 at the sensor)",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "partial",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "notes": "Reference drift / failure is not modelled separately (it is equivalent to scaling every channel).",
+   "adc": [],
+   "sfr_modules": []
+  },
+  {
+   "id": "ecu.crank",
+   "board": "ecu",
+   "category": "engine_position",
+   "name": "Crank trigger, timing element (one Hall element per ECU)",
+   "connector": "engine harness crank trigger connector (15 / 16); timing magnets in the flywheel",
+   "mcu_pins": [
+    "RE8"
+   ],
+   "sfr_modules": [
+    "INT"
+   ],
+   "peripheral": "INT1 (falling edge) + PORTE poll (T indicator)",
+   "direction": "in",
+   "electrical": "open-collector Hall output, pulled up; LOW while a timing magnet passes (one per firing event)",
+   "model": "edges from the engine model at TDC_k - magnet position; pulse width, jitter, extra pulses, missing edges, output held",
+   "faults": [
+    "missing_edges",
+    "extra_edges",
+    "noise",
+    "stuck",
+    "short_gnd",
+    "open",
+    "timing"
+   ],
+   "knobs": [
+    "S32_RPM",
+    "S32_RPM_AT",
+    "S32_START",
+    "S32_CYL",
+    "S32_MAG1",
+    "S32_MAG2",
+    "S32_HALL_WIDTH",
+    "S32_CRANK_JITTER",
+    "S32_CRANK_GLITCH",
+    "S32_CRANK_DROP",
+    "S32_CRANK_EMI",
+    "S32_HALL_STUCK"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::crank_edges_per_revolution",
+    "emu/pair/test/test_board.c::crank_glitch_drop_emi_stuck_jitter",
+    "emu/pair/test/io_faults.sh::crank_glitch_early_spark",
+    "emu/pair/test/smoke.sh"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.21: the crank trigger holds two independent sensors (one per ECU); 6-cyl: three timing magnets 120 deg apart plus one sync magnet",
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.sync",
+   "board": "ecu",
+   "category": "engine_position",
+   "name": "Crank trigger, sync element",
+   "connector": "same sensor as the timing element",
+   "mcu_pins": [
+    "RE9"
+   ],
+   "sfr_modules": [
+    "INT"
+   ],
+   "peripheral": "INT2 (falling edge) + PORTE poll (S indicator)",
+   "direction": "in",
+   "electrical": "open-collector Hall output, pulled up; LOW once per revolution",
+   "model": "one pulse per revolution S32_SYNC_BEFORE deg before event 0; same fault set as the timing element",
+   "faults": [
+    "missing_edges",
+    "extra_edges",
+    "noise",
+    "stuck",
+    "short_gnd",
+    "open",
+    "timing"
+   ],
+   "knobs": [
+    "S32_SYNC_BEFORE",
+    "S32_CRANK_DROP k:t0-t1:sync",
+    "S32_CRANK_GLITCH k:t:us:sync",
+    "S32_HALL_STUCK k:sync=..."
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::crank_glitch_drop_emi_stuck_jitter",
+    "emu/pair/test/io_faults.sh::sync_drop_lost_sync"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.21: each crank sensor has two elements, one for the timing magnets and one for the sync magnet"
+   ],
+   "notes": "Sync placement relative to event 0 is INFERRED (30 deg default).",
+   "adc": []
+  },
+  {
+   "id": "ecu.plead",
+   "board": "ecu",
+   "category": "switch_sense",
+   "name": "P-lead (ignition run-up switch), white wire",
+   "connector": "cabin signal group F: P-lead, one white wire per ECU, to the Ignition Run-up switch",
+   "mcu_pins": [
+    "RB2"
+   ],
+   "sfr_modules": [
+    "PORTB"
+   ],
+   "peripheral": "PORTB poll",
+   "direction": "in",
+   "electrical": "ground to STOP: switch grounds the wire; open = RUN (pulled up)",
+   "model": "contact level with bounce; wire faults",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_SWITCHES",
+    "S32_SWITCH t:k:plead=stop|run",
+    "S32_PIN_FAULT k:RB2=mode@t",
+    "S32_BOUNCE_MS"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::plead_retard_dip_pump_digin_contacts",
+    "emu/pair/test/io_faults.sh::plead_stop_kills_spark",
+    "emu/pair/test/power_sense.sh"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 signal wire group",
+    "install manual rev 6/19, Drawing 9 (switch and breaker wiring)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.injen",
+   "board": "ecu",
+   "category": "switch_sense",
+   "name": "Injector enable (ECU Select switch), orange wire",
+   "connector": "cabin signal group F: injector enable, one orange wire per ECU, to the ECU Select switch",
+   "mcu_pins": [
+    "RC13"
+   ],
+   "sfr_modules": [
+    "PORTC"
+   ],
+   "peripheral": "PORTC poll (status only)",
+   "direction": "in",
+   "electrical": "ground to stop: grounding the wire disables that ECU's injector drive outputs; the SPDT ON-ON ECU Select switch grounds one wire and leaves the other open",
+   "model": "ECU Select position grounds one wire (break-before-make transit); the same wire gates the injector drivers in hardware downstream of the MCU; wire faults gate it the same way",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_ECU_SELECT",
+    "S32_SELECT_GAP_MS",
+    "S32_SWITCH t:select=1|2",
+    "S32_SWITCH t:k:inj=gnd|open",
+    "S32_SWITCHES",
+    "S32_PIN_FAULT k:RC13=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::select_switch_grounds_one_enable_and_gates_injectors",
+    "emu/pair/test/test_board.c::select_switch_break_before_make",
+    "emu/pair/test/io_faults.sh::select2_moves_fuel_to_ecu2"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 signal wire group",
+    "install manual rev 6/19, Drawing 9 (switch and breaker wiring)"
+   ],
+   "notes": "OBSERVED: injection does not depend on this input (it is reported only); the gate is in the board's driver stage (Drawing 9 note: 'Grounding the INJECTOR ENABLE disables the injector drive outputs'). Where on the board the gate sits is INFERRED; that it exists is DOCUMENTED.",
+   "adc": []
+  },
+  {
+   "id": "ecu.retard",
+   "board": "ecu",
+   "category": "switch_sense",
+   "name": "Timing retard input",
+   "connector": "not in the documented harness",
+   "mcu_pins": [
+    "RD6"
+   ],
+   "sfr_modules": [
+    "PORTD"
+   ],
+   "peripheral": "PORTD poll",
+   "direction": "in",
+   "electrical": "HIGH = retard by the configured amount",
+   "model": "LOW by default (no retard wire in the documented harness); knob drives it",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_RETARD",
+    "S32_SWITCH t:k:retard=on|off",
+    "S32_PIN_FAULT k:RD6=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::plead_retard_dip_pump_digin_contacts",
+    "emu/pair/test/io_faults.sh::retard_on_subtracts_config"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "install manual rev 6/19 signal wire group (no retard wire)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.dip",
+   "board": "ecu",
+   "category": "switch_sense",
+   "name": "ECU board DIP switches 1-4",
+   "connector": "ECU board (4-position DIP switch beside the SD slot)",
+   "mcu_pins": [
+    "RD9",
+    "RD10",
+    "RD11",
+    "RD12"
+   ],
+   "sfr_modules": [
+    "PORTD"
+   ],
+   "peripheral": "PORTD poll",
+   "direction": "in",
+   "electrical": "closed = LOW (to ground)",
+   "model": "contact levels; shown on the ECU console status page",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_DIP",
+    "S32_SWITCH t:k:dipN=on|off",
+    "S32_PIN_FAULT"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::plead_retard_dip_pump_digin_contacts"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "ECU console status page shows dip1..dip4"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.sd.detect",
+   "board": "ecu",
+   "category": "switch_sense",
+   "name": "ECU SD card detect / write-enable switches",
+   "connector": "ECU board SD slot",
+   "mcu_pins": [
+    "RB3",
+    "RB4"
+   ],
+   "sfr_modules": [
+    "PORTB",
+    "CN"
+   ],
+   "peripheral": "PORTB poll + change notification CN5 (pull-up on)",
+   "direction": "in",
+   "electrical": "RB3 LOW = card present (CN5 pull-up), RB4 LOW = writable",
+   "model": "slot switches follow card insert / remove and the write-protect tab",
+   "faults": [
+    "open",
+    "short_gnd",
+    "stuck",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_ECU1_SD",
+    "S32_ECU2_SD",
+    "S32_ECU_SD_WP",
+    "S32_DEV_FAULT k:sd=remove|insert@t",
+    "S32_PIN_FAULT k:RB3=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::sd_faults",
+    "emu/pair/test/io_faults.sh::ecu_sd_card_mounts"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "ECU console status page: sd_detect / sd_writable",
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.pgm",
+   "board": "ecu",
+   "category": "unused_pin",
+   "name": "ICSP programming header (PGED1 / PGEC1): program flash read back and loaded",
+   "connector": "ECU board programming header",
+   "mcu_pins": [
+    "RB0",
+    "RB1"
+   ],
+   "sfr_modules": [
+    "PORTB"
+   ],
+   "direction": "in",
+   "electrical": "digital inputs read as part of PORTB",
+   "model": "idle high (pull-up); the program flash chip a device programmer reads and writes: per-ECU image at power-on (or blank), erased and programmed by the boot code through NVMCON, kept across power cycles and resets, read back at exit",
+   "faults": [],
+   "knobs": [
+    "S32_PIN_FAULT k:RB0=mode@t",
+    "S32_ECU1_PFLASH",
+    "S32_ECU2_PFLASH",
+    "S32_ECU1_PFLASH_OUT",
+    "S32_ECU2_PFLASH_OUT"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::pin_wire_faults",
+    "emu/ecu/tests/test_ecu.c::nvm_flash_erase_and_program"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)",
+    "DEVCFG0.ICESEL selects PGEC1/PGED1"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.inj",
+   "board": "ecu",
+   "category": "output",
+   "name": "Injector drivers 1-8 (6 used on a six-cylinder engine)",
+   "connector": "fuel circular connector; injector wires bundled and labelled per cylinder (red/black per injector)",
+   "mcu_pins": [
+    "RA0",
+    "RA1",
+    "RA2",
+    "RA3",
+    "RA4",
+    "RA5",
+    "RA6",
+    "RA7"
+   ],
+   "sfr_modules": [
+    "PORTA",
+    "TMR5"
+   ],
+   "peripheral": "PORTA latch (open-drain ODCA = 0xFF): injector pins open at the crank edge and close on a 20 us grid",
+   "direction": "out",
+   "electrical": "open-drain gate drive to the board's injector driver stage; injectors wired in parallel to both ECUs; each ECU's drive gated by its injector-enable wire; injectors powered from the aircraft bus (the higher of the two live ECU feeds)",
+   "model": "driver-pin pulses per ECU (pin level) and the union at each injector after the enable gates (fuel at the engine); each opening delivers (open time - dead time) x static flow, the dead time following the injector's supply voltage (0.80 ms at 13.8 V, longer as the bus falls; no opening below 6 V)",
+   "faults": [
+    "power_loss"
+   ],
+   "knobs": [
+    "S32_ECU_SELECT",
+    "S32_SWITCHES",
+    "S32_ECU_POWER",
+    "S32_INJ_DEAD auto|ms",
+    "S32_SUPPLY k:volts@t"
+   ],
+   "tests": [
+    "emu/pair/test/smoke.sh",
+    "emu/pair/test/test_board.c::select_switch_grounds_one_enable_and_gates_injectors",
+    "emu/pair/test/io_faults.sh::select2_moves_fuel_to_ecu2",
+    "emu/common/tests/test_common.c::dead_time_follows_supply"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 fuel injector connectors and semi-sequential firing",
+    "install manual rev 6/19, Drawing 9 (switch and breaker wiring)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "notes": "Which driver pin reaches which cylinder is not documented (the wire numbering is); modelled as RAn -> injector n+1. Driver-stage faults (open coil, shorted driver) are not modelled. The dead-time curve is the usual shape of a high-impedance injector's offset-vs-battery data normalised to 0.80 ms at 13.8 V (INFERRED: no data sheet for the installed injector).",
+   "adc": []
+  },
+  {
+   "id": "ecu.coil",
+   "board": "ecu",
+   "category": "output",
+   "name": "Ignition coil drivers 1-4 (3 used on a six-cylinder engine)",
+   "connector": "ignition circular connector, coil pack control plugs (10, 11, 12)",
+   "mcu_pins": [
+    "RD0",
+    "RD1",
+    "RD2",
+    "RD3"
+   ],
+   "sfr_modules": [
+    "OC1",
+    "OC2",
+    "OC3",
+    "OC4",
+    "TMR2",
+    "TMR3"
+   ],
+   "peripheral": "OC1-OC4 dual-compare single pulse on the 32-bit Timer2:3 (5 MHz)",
+   "direction": "out",
+   "electrical": "logic outputs to the coil-pack drivers; dwell = pulse width, spark at the falling edge",
+   "model": "each pulse captured with its crank angle (advance BTDC) and dwell",
+   "faults": [
+    "power_loss"
+   ],
+   "knobs": [
+    "S32_SPARKLOG (observer)"
+   ],
+   "tests": [
+    "emu/pair/test/smoke.sh",
+    "emu/pair/test/io_faults.sh::plead_stop_kills_spark"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 coil packs (2 for 4 cyl, 3 for 6 cyl)",
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.tach",
+   "board": "ecu",
+   "category": "output",
+   "name": "Tach signal out, green wire",
+   "connector": "cabin signal group F: tach out",
+   "mcu_pins": [
+    "RD13"
+   ],
+   "sfr_modules": [
+    "PORTD"
+   ],
+   "peripheral": "PORTD latch (cleared at the crank edge, set 20 us later)",
+   "direction": "out",
+   "electrical": "12 V square wave via the board's output stage, 3 pulses per revolution (6-cyl)",
+   "model": "rising edges counted and their frequency reported at the harness",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers",
+    "emu/pair/test/io_faults.sh::tach_pulses_per_rev"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.18: tach output is a 12 V square wave, 2 pulses/rev on 4-cyl and 3 pulses/rev on 6-cyl"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.ff",
+   "board": "ecu",
+   "category": "output",
+   "name": "Fuel flow signal out, blue wire",
+   "connector": "cabin signal group F: fuel flow out",
+   "mcu_pins": [
+    "RD8"
+   ],
+   "sfr_modules": [
+    "PORTD",
+    "TMR4"
+   ],
+   "peripheral": "PORTD latch, toggled on a 20 us grid",
+   "direction": "out",
+   "electrical": "pulse train mimicking a Floscan-type transducer (K-factor in the engine monitor)",
+   "model": "edges counted at the harness",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19: 'Fuel Flow signal out \u2013 blue wire'"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.leds",
+   "board": "ecu",
+   "category": "output",
+   "name": "ECU board LEDs (STOP, RUN, crank / sync indicators, status)",
+   "connector": "ECU board",
+   "mcu_pins": [
+    "RD7",
+    "RG12",
+    "RG13",
+    "RG14",
+    "RG15"
+   ],
+   "sfr_modules": [
+    "PORTD",
+    "PORTG"
+   ],
+   "direction": "out",
+   "electrical": "LED drives",
+   "model": "levels and changes reported at the harness",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "notes": "RD7 follows P-lead STOP, RG14 RUN, RG12/RG15 the crank / sync sensor levels with the engine stopped (bench observation).",
+   "adc": []
+  },
+  {
+   "id": "ecu.testpoints",
+   "board": "ecu",
+   "category": "output",
+   "name": "Board outputs without a documented function (test points)",
+   "connector": "ECU board",
+   "mcu_pins": [
+    "RF0",
+    "RF1",
+    "RF3",
+    "RG0",
+    "RB15"
+   ],
+   "sfr_modules": [
+    "PORTF",
+    "PORTG",
+    "PORTB"
+   ],
+   "direction": "out",
+   "electrical": "logic outputs",
+   "model": "edges counted at the harness (RF1 pulses once per crank interrupt)",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.pins.unused_out",
+   "board": "ecu",
+   "category": "unused_pin",
+   "name": "ECU pins configured as outputs and driven to a fixed level",
+   "connector": "-",
+   "mcu_pins": [
+    "RA14",
+    "RA15",
+    "RC1",
+    "RC2",
+    "RC3",
+    "RC4",
+    "RC14",
+    "RD4",
+    "RD5",
+    "RE0",
+    "RE1",
+    "RE2",
+    "RE3",
+    "RE4",
+    "RE5",
+    "RE6",
+    "RE7",
+    "RG1"
+   ],
+   "sfr_modules": [
+    "PORTA",
+    "PORTC",
+    "PORTD",
+    "PORTE",
+    "PORTG"
+   ],
+   "direction": "out",
+   "electrical": "no documented connection",
+   "model": "levels visible to the latch observer",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.link",
+   "board": "ecu",
+   "category": "bus",
+   "name": "ECU <-> Controller data link (cat5 cable)",
+   "connector": "ECU cat5 jack <-> Controller rear CAT5 ECU1 / ECU2 (straight-through cable)",
+   "mcu_pins": [
+    "RF2",
+    "RF8"
+   ],
+   "sfr_modules": [
+    "UART1"
+   ],
+   "peripheral": "UART1, 38,462 Bd 8N1 (BRG 64 at PBCLK 40 MHz), RS-232 levels",
+   "direction": "bidir",
+   "electrical": "RS-232 transceiver on each end; the same cable carries the Controller's 12 V and the power sense",
+   "model": "bytes delivered per 100-us quantum at line rate with per-direction frame-boundary mux for bench stimulus frames; FIFO overrun as on silicon; protocol decoded by a passive analyser (emu/common/link_decode.c)",
+   "faults": [
+    "open",
+    "garbage",
+    "noise",
+    "power_loss",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_ECU_LINK k:dead|cut-c2e|cut-e2c|ber=p|garbage=N@t0[-t1]",
+    "S32_ECU_LINK k:c2e:<spec>@t0[-t1][/dt]",
+    "S32_ECU_LINK k:e2c:<spec>@t0[-t1][/dt]",
+    "S32_LINK_TABLE_SEAL half|full",
+    "S32_LINKLOG",
+    "S32_LINKRAW"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::link_dead_cut_ber_garbage",
+    "emu/pair/test/test_board.c::link_bench_frames",
+    "emu/pair/test/test_board.c::link_bench_table_seal",
+    "emu/pair/test/io_faults.sh::link_ber_bad_frames",
+    "emu/pair/test/io_faults.sh::link_cut_one_direction",
+    "emu/pair/test/power_sense.sh"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19: two cat5 serial cables",
+    "the link protocol as observed on the wire (emu/common/link_decode.h)",
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.console",
+   "board": "ecu",
+   "category": "bus",
+   "name": "ECU debug console (UART1 before the link starts, UART4 after)",
+   "connector": "ECU board (UART4 on RD14/RD15; UART1 shares the link pins)",
+   "mcu_pins": [
+    "RD14",
+    "RD15"
+   ],
+   "sfr_modules": [
+    "UART4"
+   ],
+   "peripheral": "UART4, 38,462 Bd",
+   "direction": "bidir",
+   "electrical": "logic-level / RS-232 serial (connector INFERRED)",
+   "model": "transmitted text captured (ECU_CONSOLE); bytes typed into either UART at a time",
+   "faults": [
+    "garbage"
+   ],
+   "knobs": [
+    "S32_CONSOLE_IN k:1|4:t:text",
+    "ECU_CONSOLE"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::console_input_bytes",
+    "emu/pair/test/io_faults.sh::console_ecu_get"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "console output observed on the emulated bench",
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.fram",
+   "board": "ecu",
+   "category": "bus",
+   "name": "FM25V10 FRAM (configuration and maps)",
+   "connector": "ECU board",
+   "mcu_pins": [
+    "RG6",
+    "RG7",
+    "RG8",
+    "RG9"
+   ],
+   "sfr_modules": [
+    "SPI2"
+   ],
+   "peripheral": "SPI2 master (SCK RG6, SDI RG7, SDO RG8), CS RG9",
+   "direction": "bidir",
+   "electrical": "128 KB SPI F-RAM (3-byte addresses)",
+   "model": "FM25V10 command set (WREN/WRDI/RDSR/WRSR/READ/FSTRD/WRITE/SLEEP/RDID); image files in and out (model/s32_fram.ksy)",
+   "faults": [
+    "absent",
+    "short_gnd",
+    "stuck",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_ECU1_FRAM",
+    "S32_ECU2_FRAM",
+    "S32_DEV_FAULT k:fram=absent|miso-low|wp|flip:A.B@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::fram_faults",
+    "emu/pair/test/io_faults.sh::fram_absent_defaults",
+    "emu/controller/tests/test_s32dev.c"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "3-byte addressing and RDID observed on the emulated bench",
+    "model/s32_fram.ksy"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.sd",
+   "board": "ecu",
+   "category": "bus",
+   "name": "ECU SD card slot (configuration / map files, firmware update)",
+   "connector": "ECU board SD slot",
+   "mcu_pins": [
+    "RF4",
+    "RF5",
+    "RF12",
+    "RF13"
+   ],
+   "sfr_modules": [
+    "SPI4"
+   ],
+   "peripheral": "SPI4 master (SDI RF4, SDO RF5, SCK RF13), CS RF12",
+   "direction": "bidir",
+   "electrical": "SD card, SPI mode",
+   "model": "SDHC SPI-mode card backed by a FAT32 image (written back on exit)",
+   "faults": [
+    "absent",
+    "garbage",
+    "short_gnd",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_ECU1_SD",
+    "S32_ECU2_SD",
+    "S32_ECU_SD_WP",
+    "S32_DEV_FAULT k:sd=absent|miso-low|readerr|writeerr|remove|insert@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::sd_faults",
+    "emu/pair/test/io_faults.sh::ecu_sd_card_mounts",
+    "emu/pair/test/io_faults.sh::ecu_sd_cfg_csv_loads",
+    "emu/pair/test/io_faults.sh::ecu_sd_update_file"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "SPI4 traffic and CS RF12 observed on the emulated bench"
+   ],
+   "notes": "The boot code leaves RF4 configured as an output while it uses SPI4 (bench observation).",
+   "adc": []
+  },
+  {
+   "id": "ecu.power",
+   "board": "ecu",
+   "category": "power_reset",
+   "name": "ECU 12 V supply (own breaker), brown-out, power-on",
+   "connector": "harness C / D: ECU +12 V and ground, 5 A breaker each (Drawing 9)",
+   "mcu_pins": [],
+   "sfr_modules": [
+    "RESET"
+   ],
+   "direction": "in",
+   "electrical": "12 V feed; board regulators drop out at low supply",
+   "model": "breaker in/out, supply voltage over time, brown-out below S32_BOR_V holds the MCU in reset, cold boot on return (FRAM and SD kept), each ECU powers up independently",
+   "faults": [
+    "power_loss",
+    "brownout",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_ECU_POWER",
+    "S32_SUPPLY",
+    "S32_BOR_V"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::power_brownout_and_cat5_controller_supply",
+    "emu/pair/test/io_faults.sh::brownout_reboots_ecu",
+    "emu/pair/test/power_sense.sh"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 9 (switch and breaker wiring)"
+   ],
+   "notes": "The drop-out voltage (6.0 V default) is INFERRED.",
+   "adc": []
+  },
+  {
+   "id": "ecu.mclr",
+   "board": "ecu",
+   "category": "power_reset",
+   "name": "ECU MCLR reset",
+   "connector": "ECU board (programming header)",
+   "mcu_pins": [],
+   "sfr_modules": [
+    "RESET"
+   ],
+   "direction": "in",
+   "electrical": "active-low reset",
+   "model": "reset pulse: CPU and peripherals reset, FRAM kept",
+   "faults": [
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_RESET k@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::mclr_reset_events",
+    "emu/pair/test/io_faults.sh::mclr_reset_ecu"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.clock",
+   "board": "ecu",
+   "category": "clock",
+   "name": "ECU crystal, PLL and peripheral clock",
+   "connector": "ECU board crystal on OSC1 / OSC2",
+   "mcu_pins": [
+    "RC12",
+    "RC15"
+   ],
+   "sfr_modules": [
+    "OSC"
+   ],
+   "peripheral": "DEVCFG1/2: XT primary oscillator with PLL (/2 x20 /1), FPBDIV /2; OSCCON.PBDIV set again by software",
+   "direction": "in",
+   "electrical": "8 MHz crystal (INFERRED: the only value that fits the PLL limits and every observed baud/timer rate)",
+   "model": "SYSCLK 80 MHz time base, PBCLK = SYSCLK / 2^OSCCON.PBDIV (loaded from DEVCFG1 at reset); configuration words checked at start; crystal error per MCU",
+   "faults": [
+    "timing"
+   ],
+   "knobs": [
+    "S32_XTAL_PPM 1|2=ppm"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::clock_check_config_words",
+    "emu/pair/test/test_board.c::crystal_ppm_targets",
+    "emu/ecu/tests/test_ecu.c::pbclk_follows_devcfg1_and_osccon"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.watchdog",
+   "board": "ecu",
+   "category": "power_reset",
+   "name": "ECU watchdog",
+   "connector": "-",
+   "mcu_pins": [],
+   "sfr_modules": [],
+   "direction": "-",
+   "electrical": "disabled in DEVCFG1 (FWDTEN = 0); WDTCON is never accessed (S32_IOCOV)",
+   "model": "decoded from DEVCFG1 (FWDTEN, WDTPS) and WDTCON (ON, WDTCLR); when enabled and not cleared within 1 ms x 2^WDTPS the harness resets that core (RCON.WDTO set), also while the core is stopped on an exception",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::clock_check_config_words",
+    "emu/ecu/tests/test_ecu.c::watchdog_period_clear_and_fuse",
+    "emu/pair/test/test_board.c::ecu_watchdog_resets_the_core"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC32MX795F512L data sheet / DFP (model/mcu_io.json, model/pic32mx_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.an.batt1",
+   "board": "controller",
+   "category": "analog_sensor",
+   "name": "Battery 1 voltage sense (DB-15 pin 4, blue)",
+   "connector": "DB-15F pin 4 'Analog1 (Batt1 sense) (BM pin2)'",
+   "mcu_pins": [
+    "RB10"
+   ],
+   "adc": [
+    "AN10"
+   ],
+   "peripheral": "ADC1 scan (AN10, 11, 12, 13, 15; AVDD reference)",
+   "direction": "in",
+   "electrical": "12:1 divider (V = raw / 1023 x 3.3 x 12)",
+   "model": "battery volts through the divider",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_BATT 1=V",
+    "S32_CT_AN 10=raw",
+    "S32_AN_FAULT ct:10=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::ct_battery_and_afr_senses"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)"
+   ],
+   "notes": "Divider ratio INFERRED from the voltage the firmware displays.",
+   "sfr_modules": []
+  },
+  {
+   "id": "ct.an.batt2",
+   "board": "controller",
+   "category": "analog_sensor",
+   "name": "Battery 2 voltage sense (DB-15 pin 11, orange)",
+   "connector": "DB-15F pin 11 'Analog2 (Batt2 sense) (BM pin8)'",
+   "mcu_pins": [
+    "RB11"
+   ],
+   "adc": [
+    "AN11"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "12:1 divider",
+   "model": "battery volts through the divider",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_BATT 2=V",
+    "S32_CT_AN 11=raw",
+    "S32_AN_FAULT ct:11=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::ct_battery_and_afr_senses"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.an.afr",
+   "board": "controller",
+   "category": "analog_sensor",
+   "name": "Wideband O2 / AFR input (DB-15 pin 3, green)",
+   "connector": "DB-15F pin 3 'Analog3 (Wideband O2 in)' from the O2 module's 0-5 V output",
+   "mcu_pins": [
+    "RB12"
+   ],
+   "adc": [
+    "AN12"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "4:1 divider; 0-5 V linear AFR module (10-20 AFR)",
+   "model": "AFR from fuel at the injectors (after the enable gates) vs air from the engine model, first-order sensor lag; or fixed",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_AFR",
+    "S32_CT_AN 12=raw",
+    "S32_AN_FAULT ct:12=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::ct_battery_and_afr_senses",
+    "emu/wasm/test/smoke.mjs"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)",
+    "install manual rev 6/19: PLX SM-AFR wideband module"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.an.torque",
+   "board": "controller",
+   "category": "analog_sensor",
+   "name": "Torque sensor input (AN13)",
+   "connector": "not on the documented DB-15 pins",
+   "mcu_pins": [
+    "RB13"
+   ],
+   "adc": [
+    "AN13"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "analogue input, 5:1 scale in the firmware's diagnostic page",
+   "model": "0 V (unconnected) by default; any count or fault by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_CT_AN 13=raw",
+    "S32_AN_FAULT ct:13=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "Controller diagnostic page lists a torque reading"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.an.light",
+   "board": "controller",
+   "category": "analog_sensor",
+   "name": "Ambient light sensor (backlight dimming)",
+   "connector": "Controller front panel",
+   "mcu_pins": [
+    "RB15"
+   ],
+   "adc": [
+    "AN15"
+   ],
+   "peripheral": "ADC1 scan",
+   "direction": "in",
+   "electrical": "light sensor; brighter = more counts (INFERRED)",
+   "model": "mid-scale by default; any count or fault by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "noise",
+    "stuck",
+    "intermittent",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_CT_AN 15=raw",
+    "S32_AN_FAULT ct:15=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::analog_fault_modes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "Controller configuration items 'Display Dim Rate' and 'Minimum Brightness'"
+   ],
+   "sfr_modules": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.pwrsense",
+   "board": "controller",
+   "category": "switch_sense",
+   "name": "Per-ECU power sense on each cat5 cable",
+   "connector": "rear CAT5 ECU1 / CAT5 ECU2",
+   "mcu_pins": [
+    "RA2",
+    "RA1"
+   ],
+   "sfr_modules": [
+    "PORTA"
+   ],
+   "peripheral": "PORTA poll (RA2 = ECU1, RA1 = ECU2)",
+   "direction": "in",
+   "electrical": "HIGH while that ECU's supply is present on its cable",
+   "model": "follows each ECU's power state (breaker / supply / brown-out); a dead data pair does not drop it",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise",
+    "power_loss"
+   ],
+   "knobs": [
+    "S32_ECU_POWER",
+    "S32_SUPPLY",
+    "S32_PIN_FAULT ct:RA2=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/power_sense.sh",
+    "emu/pair/test/test_board.c::power_brownout_and_cat5_controller_supply",
+    "emu/wasm/test/smoke.mjs"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.23, pre-start checks: with the ECU2 breaker pulled, the Controller shows the ECU2 label grey (ECU not seen)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.pumps",
+   "board": "controller",
+   "category": "switch_sense",
+   "name": "Fuel pump 1 / 2 power senses (DB-15 pins 14 and 6)",
+   "connector": "DB-15F pin 14 'Digital In 1 (Fuel Pump 1 sense)', pin 6 'Digital In 2 (Fuel Pump 2 sense)'",
+   "mcu_pins": [
+    "RG1",
+    "RG8"
+   ],
+   "sfr_modules": [
+    "PORTG"
+   ],
+   "peripheral": "PORTG poll",
+   "direction": "in",
+   "electrical": "pump's 12 V power wire through the board's input stage: HIGH = pump on",
+   "model": "pump states with bounce; wire faults",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_PUMP",
+    "S32_SWITCH t:pumpN=on|off",
+    "S32_PIN_FAULT ct:RG1=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::plead_retard_dip_pump_digin_contacts"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)",
+    "install manual rev 6/19 pre-start checks (Pump 1 green, Pump 2 yellow)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.digin",
+   "board": "controller",
+   "category": "switch_sense",
+   "name": "Spare digital inputs 3 and 4",
+   "connector": "not on the documented DB-15 pins",
+   "mcu_pins": [
+    "RG9",
+    "RG14"
+   ],
+   "sfr_modules": [
+    "PORTG"
+   ],
+   "peripheral": "PORTG poll",
+   "direction": "in",
+   "electrical": "digital inputs, idle high",
+   "model": "open by default; levels by knob",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_DIGIN",
+    "S32_SWITCH t:diginN=lo|hi"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::plead_retard_dip_pump_digin_contacts"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "Controller diagnostic page lists DIGIN3 / DIGIN4"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.buttons",
+   "board": "controller",
+   "category": "human_input",
+   "name": "Bezel buttons 1-4 (knob push, MENU, TUNE, MONITOR)",
+   "connector": "Controller front bezel",
+   "mcu_pins": [
+    "RA5",
+    "RA3",
+    "RA4",
+    "RA7"
+   ],
+   "sfr_modules": [
+    "PORTA"
+   ],
+   "peripheral": "PORTA poll",
+   "direction": "in",
+   "electrical": "active low with pull-ups",
+   "model": "contacts with bounce",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_INPUT t:knob|menu|tune|monitor[+...]:ms",
+    "S32_BOUNCE_MS",
+    "S32_BOUNCE_EDGES",
+    "S32_PIN_FAULT ct:RA3=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::bezel_script_buttons_encoder",
+    "emu/pair/test/test_board.c::contact_bounce_chatter",
+    "emu/pair/test/power_sense.sh",
+    "emu/wasm/test/smoke.mjs"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "bench: each pin's effect on the menus"
+   ],
+   "notes": "Which bezel position is which button is INFERRED from the menus' behaviour.",
+   "adc": []
+  },
+  {
+   "id": "ct.encoder",
+   "board": "controller",
+   "category": "human_input",
+   "name": "Rotary encoder (fuel trim / list navigation)",
+   "connector": "Controller front bezel",
+   "mcu_pins": [
+    "RA14",
+    "RA15"
+   ],
+   "sfr_modules": [
+    "PORTA"
+   ],
+   "peripheral": "PORTA poll (quadrature, one event per edge)",
+   "direction": "in",
+   "electrical": "two contacts, active low",
+   "model": "quadrature edges at any rate (equal or uneven states per detent), with bounce on the contact that switches (the other holds its level)",
+   "faults": [
+    "open",
+    "short_gnd",
+    "short_supply",
+    "stuck",
+    "intermittent",
+    "noise"
+   ],
+   "knobs": [
+    "S32_INPUT t:enc:N[@ms|@a/b/c[/d]]",
+    "S32_INPUT t:edge:N[@ms]",
+    "S32_BOUNCE_MS",
+    "S32_PIN_FAULT ct:RA14=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::bezel_script_buttons_encoder",
+    "emu/pair/test/test_board.c::encoder_bounce_switching_contact_only",
+    "emu/pair/test/power_sense.sh",
+    "emu/wasm/test/smoke.mjs"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "bench"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.sd.detect",
+   "board": "controller",
+   "category": "switch_sense",
+   "name": "Controller SD card detect / write protect",
+   "connector": "Controller front SD slot",
+   "mcu_pins": [
+    "RE3",
+    "RE4"
+   ],
+   "sfr_modules": [
+    "PORTE"
+   ],
+   "peripheral": "PORTE poll",
+   "direction": "in",
+   "electrical": "RE3 LOW = card present, RE4 HIGH = write-protected",
+   "model": "slot switches follow insert / remove and the tab",
+   "faults": [
+    "open",
+    "short_gnd",
+    "stuck",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_CT_SD",
+    "S32_CT_SD_WP",
+    "S32_DEV_FAULT ct:sd=remove|insert@t",
+    "S32_PIN_FAULT ct:RE3=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::sd_faults",
+    "emu/pair/test/io_faults.sh::ct_sd_load_fuel"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "bench: SD access gated on these pins"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.pins.unused_in",
+   "board": "controller",
+   "category": "unused_pin",
+   "name": "Controller pins read as inputs but masked",
+   "connector": "-",
+   "mcu_pins": [
+    "RA9",
+    "RA10",
+    "RE5",
+    "RE6",
+    "RE7",
+    "RG0",
+    "RG2",
+    "RG3"
+   ],
+   "sfr_modules": [
+    "PORTA",
+    "PORTE",
+    "PORTG"
+   ],
+   "direction": "in",
+   "electrical": "no documented connection (RA9/RA10 are the VREF pins, unused: the ADC uses AVDD)",
+   "model": "idle high",
+   "faults": [],
+   "knobs": [
+    "S32_PIN_FAULT ct:RXn=mode@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::pin_wire_faults"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.backlight",
+   "board": "controller",
+   "category": "output",
+   "name": "LCD backlight PWM",
+   "connector": "Controller board (panel backlight driver)",
+   "mcu_pins": [
+    "RD0"
+   ],
+   "sfr_modules": [
+    "OC1",
+    "TMR2"
+   ],
+   "peripheral": "OC1 edge-aligned PWM on RP11 (RD0), Timer2 8 kHz",
+   "direction": "out",
+   "electrical": "PWM to the backlight driver",
+   "model": "duty and frequency reported from the OC1 / Timer2 registers",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "partial",
+   "evidence": "OBSERVED",
+   "sources": [
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "notes": "The OC1 output waveform itself is not generated (duty is read from the compare registers); dimming follows the ambient sensor.",
+   "adc": []
+  },
+  {
+   "id": "ct.digout",
+   "board": "controller",
+   "category": "output",
+   "name": "Controller digital outputs 1-4",
+   "connector": "not on the documented connectors",
+   "mcu_pins": [
+    "RE0",
+    "RE1",
+    "RE8",
+    "RE9"
+   ],
+   "sfr_modules": [
+    "PORTE"
+   ],
+   "direction": "out",
+   "electrical": "logic outputs, driven low by the stock firmware",
+   "model": "levels reported at the harness",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "Controller diagnostic page lists DIGOUT"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.lcd",
+   "board": "controller",
+   "category": "bus",
+   "name": "LCD panel: RGB interface and panel-controller setup bus",
+   "connector": "Controller board to the 320x240 TFT",
+   "mcu_pins": [
+    "RA0",
+    "RB0",
+    "RB1",
+    "RD8",
+    "RA6",
+    "RB7",
+    "RG12",
+    "RG13",
+    "RG15",
+    "RB2",
+    "RB3",
+    "RB4",
+    "RB8",
+    "RB9",
+    "RC1",
+    "RC2",
+    "RC3",
+    "RD1",
+    "RD2",
+    "RD9",
+    "RD14",
+    "RD15",
+    "RF2",
+    "RF8",
+    "RF13"
+   ],
+   "sfr_modules": [
+    "GFX"
+   ],
+   "peripheral": "graphics controller G1 (RGB 4 bpp CLUT, 320x240, GD data pins, GCLK, HSYNC, VSYNC, GEN, GPWR) + bit-banged 3-wire setup bus (CS RA0, clock RD8, data RB1, RB0)",
+   "direction": "out",
+   "electrical": "parallel RGB TFT; panel controller configured over the 3-wire bus at start",
+   "model": "framebuffer rendered from the graphics controller's registers and EDS memory (G1DPADR, CLUT); setup-bus transactions counted",
+   "faults": [],
+   "knobs": [
+    "S32_PPM",
+    "S32_SNAPDIR",
+    "S32_SNAP_MS",
+    "S32_INPUT t:snap:name"
+   ],
+   "tests": [
+    "emu/pair/test/power_sense.sh",
+    "emu/wasm/test/smoke.mjs",
+    "emu/pair/test/test_board.c::output_observers",
+    "emu/controller/tests/test_s32gfx.c",
+    "emu/pair/test/io_faults.sh::panel_snapshot_period"
+   ],
+   "modelled": "partial",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "notes": "Panel-controller register contents are not decoded; panel faults (dead pixels, no backlight) are not modelled.",
+   "adc": []
+  },
+  {
+   "id": "ct.pins.unused_out",
+   "board": "controller",
+   "category": "unused_pin",
+   "name": "Controller pin configured as an output without a documented function",
+   "connector": "-",
+   "mcu_pins": [
+    "RB6"
+   ],
+   "sfr_modules": [
+    "PORTB"
+   ],
+   "direction": "out",
+   "electrical": "no documented connection",
+   "model": "levels visible to the latch observer",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)",
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.pgm",
+   "board": "controller",
+   "category": "unused_pin",
+   "name": "ICSP programming header (PGED1 / PGEC1): program flash read back and loaded",
+   "connector": "Controller board programming header",
+   "mcu_pins": [],
+   "sfr_modules": [
+    "NVM"
+   ],
+   "direction": "in",
+   "electrical": "ICSP programming lines (shared with RB0 / RB1 on the panel setup bus)",
+   "model": "the program flash chip a device programmer reads and writes: Controller image at power-on (or blank), erased and programmed through NVMCON, kept across power cycles and resets, read back at exit (packed 3 bytes per 24-bit instruction word)",
+   "faults": [],
+   "knobs": [
+    "S32_CT_PFLASH",
+    "S32_CT_PFLASH_OUT"
+   ],
+   "tests": [
+    "emu/controller/tests/test_s32ct.c::nvm_flash_erase_and_program",
+    "emu/pair/test/io_faults.sh::ct_firmware_update_entry",
+    "emu/pair/test/io_faults.sh::ct_pflash_out"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.link1",
+   "board": "controller",
+   "category": "bus",
+   "name": "Controller <-> ECU1 data link (cat5 'ECU1')",
+   "connector": "rear CAT5 ECU1",
+   "mcu_pins": [
+    "RG6",
+    "RC4"
+   ],
+   "sfr_modules": [
+    "UART3"
+   ],
+   "peripheral": "UART3 (TX RP21 = RG6, RX RPI41 = RC4), 38,462 Bd",
+   "direction": "bidir",
+   "electrical": "RS-232 transceiver; the cable also carries 12 V from ECU1 and its power sense",
+   "model": "as ecu.link",
+   "faults": [
+    "open",
+    "garbage",
+    "noise",
+    "power_loss"
+   ],
+   "knobs": [
+    "S32_ECU_LINK 1:..."
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::link_dead_cut_ber_garbage",
+    "emu/pair/test/test_board.c::link_bench_frames",
+    "emu/pair/test/power_sense.sh",
+    "emu/pair/test/smoke.sh"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)",
+    "the link protocol as observed on the wire (emu/common/link_decode.h)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.link2",
+   "board": "controller",
+   "category": "bus",
+   "name": "Controller <-> ECU2 data link (cat5 'ECU2')",
+   "connector": "rear CAT5 ECU2",
+   "mcu_pins": [
+    "RB14",
+    "RF12"
+   ],
+   "sfr_modules": [
+    "UART4"
+   ],
+   "peripheral": "UART4 (TX RP14 = RB14, RX RPI32 = RF12), 38,462 Bd",
+   "direction": "bidir",
+   "electrical": "RS-232 transceiver; the cable also carries 12 V from ECU2 and its power sense",
+   "model": "as ecu.link",
+   "faults": [
+    "open",
+    "garbage",
+    "noise",
+    "power_loss"
+   ],
+   "knobs": [
+    "S32_ECU_LINK 2:..."
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::link_dead_cut_ber_garbage",
+    "emu/pair/test/test_board.c::link_bench_frames",
+    "emu/pair/test/io_faults.sh::link_cut_one_direction"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.uart1",
+   "board": "controller",
+   "category": "bus",
+   "name": "Controller console / telemetry UART1 (115.2 kBd)",
+   "connector": "DB-9M telemetry interface (RS232 A TX pin 1, RX pin 6, GND pin 2) -- which UART reaches it is INFERRED",
+   "mcu_pins": [
+    "RD3",
+    "RC14"
+   ],
+   "sfr_modules": [
+    "UART1"
+   ],
+   "peripheral": "UART1 (TX RP22 = RD3, RX RPI37 = RC14), BRGH 1, BRG 33",
+   "direction": "bidir",
+   "electrical": "RS-232 via the DB-9",
+   "model": "transmitted text captured (S32_CT_CONSOLE); bytes typed in at a time",
+   "faults": [
+    "garbage"
+   ],
+   "knobs": [
+    "S32_CONSOLE_IN ct:1:t:text",
+    "S32_CT_CONSOLE"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::console_input_bytes",
+    "emu/controller/tests/test_s32ct.c::uart1_rx_pacing_and_tx_sink"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19, Drawing 8 (Controller wiring, DB-15 / DB-9)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.uart2",
+   "board": "controller",
+   "category": "bus",
+   "name": "Controller spare UART2 (38.4 kBd, receive enabled)",
+   "connector": "not on the documented connectors",
+   "mcu_pins": [
+    "RF5",
+    "RF4"
+   ],
+   "sfr_modules": [
+    "UART2"
+   ],
+   "peripheral": "UART2 (TX RP17 = RF5, RX RP10 = RF4)",
+   "direction": "bidir",
+   "electrical": "serial",
+   "model": "bytes typed in at a time; transmitted bytes to a sink",
+   "faults": [
+    "garbage"
+   ],
+   "knobs": [
+    "S32_CONSOLE_IN ct:2:t:text"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::console_input_bytes"
+   ],
+   "modelled": "yes",
+   "evidence": "INFERRED",
+   "sources": [
+    "stock firmware I/O configuration as the bench observes it (S32_IOCOV final TRIS/ANS/PPS/peripheral registers)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.fram",
+   "board": "controller",
+   "category": "bus",
+   "name": "FM25V10 FRAM (Controller settings)",
+   "connector": "Controller board",
+   "mcu_pins": [
+    "RG7",
+    "RD8",
+    "RD5",
+    "RB1",
+    "RB5",
+    "RD12"
+   ],
+   "sfr_modules": [
+    "SPI2",
+    "PPS"
+   ],
+   "peripheral": "SPI2 master, 250 kHz mode 0 (SCK RP2 = RD8 and RP20 = RD5, SDO RP1 = RB1 and RP18 = RB5, SDI RPI42 = RD12), CS RG7",
+   "direction": "bidir",
+   "electrical": "128 KB SPI F-RAM",
+   "model": "as ecu.fram",
+   "faults": [
+    "absent",
+    "short_gnd",
+    "stuck",
+    "out_of_range"
+   ],
+   "knobs": [
+    "S32_CT_FRAM",
+    "S32_CT_FRAM_OUT",
+    "S32_DEV_FAULT ct:fram=..."
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::fram_faults",
+    "emu/controller/tests/test_s32dev.c"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "bench: 3-byte addressed reads on CS RG7"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.rtc",
+   "board": "controller",
+   "category": "bus",
+   "name": "PCF2127 real-time clock",
+   "connector": "Controller board (battery backed)",
+   "mcu_pins": [
+    "RF3"
+   ],
+   "sfr_modules": [
+    "SPI2"
+   ],
+   "peripheral": "SPI2, CS RF3",
+   "direction": "bidir",
+   "electrical": "SPI RTC with oscillator-stop flag (seconds bit 7)",
+   "model": "time from emulated time; oscillator-stop flag, invalid registers (backup lost), absent part",
+   "faults": [
+    "absent",
+    "short_gnd",
+    "out_of_range",
+    "stuck"
+   ],
+   "knobs": [
+    "S32_RTC ok|osf|invalid|absent",
+    "S32_RTC_EPOCH",
+    "S32_DEV_FAULT ct:rtc=..."
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::rtc_osf_invalid_absent",
+    "emu/pair/test/io_faults.sh::rtc_osf_boot",
+    "emu/controller/tests/test_s32dev.c"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "bench: '20 00 00 00' register reads on CS RF3"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.sd",
+   "board": "controller",
+   "category": "bus",
+   "name": "Controller SD card (maps, datalog, firmware files)",
+   "connector": "Controller front SD slot",
+   "mcu_pins": [
+    "RE2",
+    "RD4",
+    "RD10",
+    "RD11"
+   ],
+   "sfr_modules": [
+    "SPI1"
+   ],
+   "peripheral": "SPI1 master (SCK RP25 = RD4, SDO RP3 = RD10, SDI RP12 = RD11), CS RE2",
+   "direction": "bidir",
+   "electrical": "SD card, SPI mode, FAT",
+   "model": "SDHC SPI-mode card on a FAT32 image (written back on exit)",
+   "faults": [
+    "absent",
+    "garbage",
+    "short_gnd",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_CT_SD",
+    "S32_CT_SD_WP",
+    "S32_DEV_FAULT ct:sd=..."
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::sd_faults",
+    "emu/pair/test/io_faults.sh::ct_sd_load_fuel"
+   ],
+   "modelled": "yes",
+   "evidence": "OBSERVED",
+   "sources": [
+    "bench: datalog and map files written / read"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.power",
+   "board": "controller",
+   "category": "power_reset",
+   "name": "Controller supply through the cat5 cables",
+   "connector": "rear CAT5 ECU1 / ECU2",
+   "mcu_pins": [],
+   "sfr_modules": [
+    "RESET"
+   ],
+   "direction": "in",
+   "electrical": "12 V from either ECU's cable (diode-OR INFERRED)",
+   "model": "Controller runs while either ECU is powered; cold boot when one returns",
+   "faults": [
+    "power_loss",
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_ECU_POWER",
+    "S32_SUPPLY"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::power_brownout_and_cat5_controller_supply",
+    "emu/pair/test/io_faults.sh::both_ecus_off_controller_off"
+   ],
+   "modelled": "yes",
+   "evidence": "DOCUMENTED",
+   "sources": [
+    "install manual rev 6/19 p.20: the Controller is powered over the two cat5 cables from the ECUs; it has no power wiring of its own"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.mclr",
+   "board": "controller",
+   "category": "power_reset",
+   "name": "Controller MCLR reset",
+   "connector": "Controller board",
+   "mcu_pins": [],
+   "sfr_modules": [
+    "RESET"
+   ],
+   "direction": "in",
+   "electrical": "active-low reset",
+   "model": "reset pulse: CPU and peripherals reset, FRAM and RTC kept",
+   "faults": [
+    "intermittent"
+   ],
+   "knobs": [
+    "S32_RESET ct@t"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::mclr_reset_events"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.clock",
+   "board": "controller",
+   "category": "clock",
+   "name": "Controller crystal, 96 MHz PLL, instruction and pixel clocks",
+   "connector": "Controller board crystal",
+   "mcu_pins": [],
+   "sfr_modules": [
+    "OSC"
+   ],
+   "peripheral": "CONFIG2: XT, PLLDIV /2, 96 MHz PLL, CPDIV 1 -> Fcy 16 MHz; CLKDIV2 GCLKDIV for the pixel clock",
+   "direction": "in",
+   "electrical": "8 MHz crystal (INFERRED: 4 MHz PLL input required)",
+   "model": "Fcy 16 MHz time base; configuration words checked at start; crystal error",
+   "faults": [
+    "timing"
+   ],
+   "knobs": [
+    "S32_XTAL_PPM ct=ppm"
+   ],
+   "tests": [
+    "emu/pair/test/test_board.c::clock_check_config_words",
+    "emu/pair/test/test_board.c::crystal_ppm_targets"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.watchdog",
+   "board": "controller",
+   "category": "power_reset",
+   "name": "Controller watchdog",
+   "connector": "-",
+   "mcu_pins": [],
+   "sfr_modules": [],
+   "direction": "-",
+   "electrical": "disabled in CONFIG1 (FWDTEN = 0)",
+   "model": "decoded and reported by the clock check",
+   "faults": [],
+   "knobs": [],
+   "tests": [
+    "emu/pair/test/test_board.c::clock_check_config_words"
+   ],
+   "modelled": "yes",
+   "evidence": "DATASHEET",
+   "sources": [
+    "PIC24FJ256DA210 data sheet / DFP (model/mcu_io.json, model/pic24fj256da210_sfr.json)"
+   ],
+   "adc": [],
+   "notes": ""
+  }
+ ],
+ "on_chip": [
+  {
+   "id": "ecu.chip.int",
+   "board": "ecu",
+   "name": "Interrupt controller (multi-vector), change notification",
+   "sfr_modules": [
+    "INT",
+    "CN"
+   ],
+   "model": "EIC-mode vectors, priorities, INT0-4 edge flags, CN on CN5",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.timers",
+   "board": "ecu",
+   "name": "Timers 1-5 (Timer2:3 paired as one 32-bit timer)",
+   "sfr_modules": [
+    "TMR1",
+    "TMR2",
+    "TMR3",
+    "TMR4",
+    "TMR5"
+   ],
+   "model": "lazy counting at PBCLK / prescale, period interrupts, T32 pairing",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "notes": "Timer2:3 runs 32-bit at PBCLK/8 = 5 MHz.",
+   "mcu_pins": [],
+   "adc": []
+  },
+  {
+   "id": "ecu.chip.oc",
+   "board": "ecu",
+   "name": "Output compare 1-4",
+   "sfr_modules": [
+    "OC1",
+    "OC2",
+    "OC3",
+    "OC4"
+   ],
+   "model": "dual-compare single pulse, OC32 on Timer2:3",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.adc",
+   "board": "ecu",
+   "name": "ADC1 (10-bit, scan, auto-sample)",
+   "sfr_modules": [
+    "ADC1"
+   ],
+   "model": "scan list cycling, SMPI, CLRASAM, TAD from PBCLK",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.ports",
+   "board": "ecu",
+   "name": "I/O ports A-G (TRIS, PORT, LAT, ODC, analog select)",
+   "sfr_modules": [
+    "PORTA",
+    "PORTB",
+    "PORTC",
+    "PORTD",
+    "PORTE",
+    "PORTF",
+    "PORTG"
+   ],
+   "model": "latch / pin read-back, analog pins read 0, CLR/SET/INV portals",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.uart_spi",
+   "board": "ecu",
+   "name": "UART1/UART4, SPI2/SPI4 peripherals",
+   "sfr_modules": [
+    "UART1",
+    "UART4",
+    "SPI2",
+    "SPI4"
+   ],
+   "model": "line-rate FIFOs, overrun, chip-select-routed SPI devices",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.osc",
+   "board": "ecu",
+   "name": "Oscillator control (OSCCON, SYSKEY unlock)",
+   "sfr_modules": [
+    "OSC"
+   ],
+   "model": "PBDIV from OSCCON",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c::pbclk_follows_devcfg1_and_osccon"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.sysbus",
+   "board": "ecu",
+   "name": "Bus matrix, prefetch cache, DMA control, debug port control",
+   "sfr_modules": [
+    "SYSBUS"
+   ],
+   "model": "register storage (wait states and cache have no timing effect in the model)",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c"
+   ],
+   "notes": "Cache / wait-state timing is not modelled: one instruction per SYSCLK cycle.",
+   "mcu_pins": [],
+   "adc": []
+  },
+  {
+   "id": "ecu.chip.nvm",
+   "board": "ecu",
+   "name": "Flash controller (bootloader self-programming)",
+   "sfr_modules": [
+    "NVM"
+   ],
+   "model": "NVMKEY unlock, page erase, word / row program",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/ecu/tests/test_ecu.c::nvm_flash_erase_and_program",
+    "emu/pair/test/io_faults.sh::ecu_sd_update_file"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ecu.chip.reset",
+   "board": "ecu",
+   "name": "Reset control",
+   "sfr_modules": [
+    "RESET"
+   ],
+   "model": "POR / MCLR through the harness",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/pair/test/test_board.c::mclr_reset_events"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.cpu",
+   "board": "controller",
+   "name": "CPU core registers (W, SR, CORCON, EDS / PSV pages, table page)",
+   "sfr_modules": [
+    "CPU"
+   ],
+   "model": "PIC24F core",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/pic24/tests/test_core.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.int",
+   "board": "controller",
+   "name": "Interrupt controller",
+   "sfr_modules": [
+    "INT"
+   ],
+   "model": "IFS/IEC/IPC, traps, priorities",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/pic24/tests/test_core.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.timers",
+   "board": "controller",
+   "name": "Timer1, Timer2 (backlight PWM base)",
+   "sfr_modules": [
+    "TMR1",
+    "TMR2"
+   ],
+   "model": "16-bit timers",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/controller/tests/test_s32ct.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.oc",
+   "board": "controller",
+   "name": "Output compare 1 (backlight PWM)",
+   "sfr_modules": [
+    "OC1"
+   ],
+   "model": "register storage (waveform not generated)",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/pair/test/test_board.c::output_observers"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.adc",
+   "board": "controller",
+   "name": "ADC1",
+   "sfr_modules": [
+    "ADC1"
+   ],
+   "model": "scan list cycling, SMPI, interrupt",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/controller/tests/test_s32ct.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.ports",
+   "board": "controller",
+   "name": "I/O ports A-G and analog select",
+   "sfr_modules": [
+    "PORTA",
+    "PORTB",
+    "PORTC",
+    "PORTD",
+    "PORTE",
+    "PORTF",
+    "PORTG"
+   ],
+   "model": "latch / pin read-back, analog pins read 0",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/controller/tests/test_s32ct.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.pps",
+   "board": "controller",
+   "name": "Peripheral pin select",
+   "sfr_modules": [
+    "PPS"
+   ],
+   "model": "register storage; the mapping is recorded by the coverage dump",
+   "evidence": "DATASHEET",
+   "tests": [
+    "scripts/io_coverage.py"
+   ],
+   "notes": "PPS routing is not enforced: peripherals reach their devices regardless of the mapping.",
+   "mcu_pins": [],
+   "adc": []
+  },
+  {
+   "id": "ct.chip.uart_spi",
+   "board": "controller",
+   "name": "UART1-4, SPI1/SPI2",
+   "sfr_modules": [
+    "UART1",
+    "UART2",
+    "UART3",
+    "UART4",
+    "SPI1",
+    "SPI2"
+   ],
+   "model": "line-rate FIFOs, overrun, chip-select-routed SPI devices",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/controller/tests/test_s32ct.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.gfx",
+   "board": "controller",
+   "name": "Graphics controller",
+   "sfr_modules": [
+    "GFX"
+   ],
+   "model": "RCC fill / copy, CHR text, IPU inflate, CLUT, vblank",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/controller/tests/test_s32gfx.c"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.osc",
+   "board": "controller",
+   "name": "Oscillator control (OSCCON, CLKDIV, CLKDIV2)",
+   "sfr_modules": [
+    "OSC"
+   ],
+   "model": "register storage; Fcy fixed at 16 MHz (checked against CONFIG2)",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/pair/test/test_board.c::clock_check_config_words"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.nvm",
+   "board": "controller",
+   "name": "Flash controller (firmware-update flag page)",
+   "sfr_modules": [
+    "NVM"
+   ],
+   "model": "NVMKEY unlock, page erase, row / word program",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/controller/tests/test_s32ct.c",
+    "emu/pair/test/io_faults.sh::ct_firmware_update_entry"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  },
+  {
+   "id": "ct.chip.reset",
+   "board": "controller",
+   "name": "Reset control",
+   "sfr_modules": [
+    "RESET"
+   ],
+   "model": "POR / MCLR through the harness; the core's own resets take the same path: RESET instruction (RCON.SWR), illegal opcode or illegal address mode (RCON.IOPUWR), hard-trap conflict (RCON.TRAPR). RCON keeps its flags across non-POR resets. BREAK with no debugger attached is treated as an illegal opcode (INFERRED-high: BREAK is not in the user instruction set). The uninitialized-W cause of IOPUWR is not detected. PIC24_ILLEGAL_STOPS=1 makes an illegal opcode stop the emulator instead (debug only)",
+   "evidence": "DATASHEET",
+   "tests": [
+    "emu/pair/test/test_board.c::mclr_reset_events",
+    "emu/pic24/tests/test_core.c::illegal_opcode_resets",
+    "emu/pic24/tests/test_core.c::break_instruction",
+    "emu/controller/tests/test_s32ct.c::reset_causes_set_rcon_and_reset_peripherals",
+    "emu/pair/test/io_faults.sh::ct_firmware_update_resets"
+   ],
+   "mcu_pins": [],
+   "adc": [],
+   "notes": ""
+  }
+ ]
+}
