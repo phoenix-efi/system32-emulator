@@ -8,10 +8,11 @@
 #   make firmware       fetch and verify the default firmware into .firmware-cache/v86 (S32_V86_SRC=<dir> for a
 #                       local copy of the update files instead of the release assets)
 #   make bench-site     the browser bench with its default firmware in build/bench-site (make serve-bench serves it)
+#   make bench-scenarios  the bench page's scenarios (?scenario=<id>) in headless Chromium on that site
 #   make dist           the versioned WebAssembly bundle for other sites (dist/, scripts/make_dist.py)
 
 .PHONY: all emu test test-c test-scripts wasm-emcc wasm wasm-test wasm-host-test firmware conformance-synthetic \
-        conformance conformance-browser bench bench-site serve-bench dist io-coverage check-generated \
+        conformance conformance-browser bench bench-site serve-bench bench-scenarios dist io-coverage check-generated \
         cppcheck tool-versions python-lock check check-nofw clean
 
 all: emu
@@ -100,6 +101,13 @@ bench-site: wasm firmware
 SERVE_PORT ?= 8787
 serve-bench: bench-site
 	python3 -m http.server $(SERVE_PORT) --bind 127.0.0.1 --directory $(BENCH_SITE)
+
+# The bench page's scenarios (?scenario=<id>, scripts/bench_scenarios.py) in headless Chromium (Playwright from uv.lock):
+# each one sets up without a JavaScript error and reaches the state it describes. Not part of make check.
+# SCENARIO_ARGS adds options (--shots DIR, --only id,id).
+SCENARIO_ARGS ?=
+bench-scenarios: bench-site
+	$(PYRUN) -I scripts/bench_scenarios.py --site $(BENCH_SITE) $(SCENARIO_ARGS)
 
 # The versioned WebAssembly bundle a site embeds: the module, the bench page, the firmware
 # manifest (no firmware) and a SHA-256 list. VERSION defaults to `git describe`.

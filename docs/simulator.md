@@ -114,6 +114,42 @@ acknowledged.
 * **Link Data Wires off** keeps the ECU powered and running but silences its link both ways (a broken data pair, a
   failed transceiver, a hung ECU). The Controller shows that ECU red, the colour it also uses for a grounded
   P-lead.
+* **ECU 1 MAP Sensor** disconnects ECU 1's MAP input or shorts it to ground or 5 V; ECU 2 keeps its own sensor.
+
+### Panel switches
+
+**Fuel Pump 1** and **Fuel Pump 2** drive the Controller's pump inputs (the PMP1 / PMP2 tabs). **ECU Select** grounds
+the Fuel Injectors Enable wire of the ECU that is not selected, so only the selected ECU fuels; the page starts with
+ECU 1 selected, as the installation does. The two Fuel Injectors Enable boxes are the same two wires, set one at a time.
+
+## Scenarios and links
+
+The Scenarios list on the bench page sets the bench up in a named state. A page can link straight to one:
+
+    index.html?scenario=<id>              set up, then pause (press 1x to run)
+    index.html?scenario=<id>&autostart=1  set up and keep running
+
+The scenario is set up once the default firmware has loaded and its first power-up and power cycle have run. Each one
+starts from the same point: the page's default controls with the engine stopped, a power cycle with the configuration
+kept, the Controller's home page, fuel trim 0 %. An unknown id shows a short notice and the bench runs normally.
+Picking a scenario from the list puts its id in the address bar, so the link can be copied from there.
+
+| id | State |
+|---|---|
+| `first-start` | configuration chips erased, first power-up, engine stopped: both ECU tabs red, no sparks |
+| `runup` | 1800 RPM, 20 inHg, both ECUs firing, ECU 1 selected, pump 1 on |
+| `cruise` | 2400 RPM, 24.0 inHg, fuel trim 0 % |
+| `takeoff` | 2700 RPM, 29.0 inHg, full throttle |
+| `ecu-silent` | cruise, ECU 1 powered but its link silent: ECU1 tab red, its values shown as dashes |
+| `map-fail` | cruise, ECU 1's MAP sensor disconnected; selecting ECU 2 brings the AFR back |
+| `ecu-select` | cruise on ECU 2: ECU 2 fuels, ECU2 tab blue |
+| `rpm-limit` | 2950 RPM; with this configuration the ignition cuts at 3000 RPM |
+| `trim-lop` | cruise with the fuel trim at -28 %: the bench AFR reads about 15.5 |
+
+The states in the right-hand column are what the stock v86 firmware shows on this bench. The scenarios are one table in
+the page (`SCENARIOS` in `emu/wasm/web/index.html`); `make bench-scenarios` opens each link in headless Chromium and
+checks that it sets up without a JavaScript error and reaches that state (`scripts/bench_scenarios.py`;
+`SCENARIO_ARGS="--shots DIR"` saves screenshots).
 
 ### The harness and its knobs
 

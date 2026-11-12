@@ -229,6 +229,27 @@
   }
   .combo-btn:hover { background: rgba(56, 189, 248, 0.2); }
 
+  /* Scenarios */
+  .scn-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .scn-item {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 8px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .scn-item button.secondary { text-align: left; }
+  .scn-note {
+    font-size: 11px;
+    color: var(--amber);
+    margin-bottom: 8px;
+  }
+
   /* Dropzone & Presets */
   .dropzone {
     border: 2px dashed #385072;
@@ -537,6 +558,15 @@
 
   <!-- CENTER COLUMN: PRESETS, ENGINE & SENSORS -->
   <div class="col-controls">
+    <div class="card" id="scenarios-card">
+      <div class="card-title">
+        <span>Scenarios</span>
+        <span style="font-family:var(--mono);font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;">link: ?scenario=&lt;id&gt;&amp;autostart=1</span>
+      </div>
+      <div class="scn-note" id="scn-note" style="display:none;"></div>
+      <div class="scn-list" id="scn-list"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">
         <span>1. Aircraft Configuration &amp; Firmware</span>
@@ -700,13 +730,22 @@
           <div class="sw-row"><span>Ignition Enable (P-Lead)</span><input type="checkbox" id="sw-e1-pld" checked onchange="updateSwitches(0)" /></div>
           <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e1-inj" checked onchange="updateSwitches(0)" /></div>
           <div class="sw-row"><span>Start Timing Retard</span><input type="checkbox" id="sw-e1-ret" onchange="updateSwitches(0)" /></div>
+          <div class="sw-row">
+            <span>ECU 1 MAP Sensor:</span>
+            <select id="sel-e1-map" onchange="updateMapFault()" style="background:#0b0f17;color:#fff;border:1px solid #26354d;border-radius:4px;padding:2px 4px;font-size:11px;">
+              <option value="none">Normal (Connected)</option>
+              <option value="open">Disconnected</option>
+              <option value="gnd">Shorted to Ground (0V)</option>
+              <option value="vcc">Shorted to 5V</option>
+            </select>
+          </div>
         </div>
         <div class="ecu-sw-box">
           <h4>ECU 2 (Secondary Bus)</h4>
           <div class="sw-row"><span>ECU Power</span><input type="checkbox" id="sw-e2-pwr" checked onchange="updateSwitches(1)" /></div>
           <div class="sw-row"><span>Link Data Wires (off = powered but silent)</span><input type="checkbox" id="sw-e2-lnk" checked onchange="updateSwitches(1)" /></div>
           <div class="sw-row"><span>Ignition Enable (P-Lead)</span><input type="checkbox" id="sw-e2-pld" checked onchange="updateSwitches(1)" /></div>
-          <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e2-inj" checked onchange="updateSwitches(1)" /></div>
+          <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e2-inj" onchange="updateSwitches(1)" /></div>
           <div class="sw-row"><span>Start Timing Retard</span><input type="checkbox" id="sw-e2-ret" onchange="updateSwitches(1)" /></div>
           <div class="sw-row">
             <span>ECU 2 Throttle Sensor:</span>
@@ -717,6 +756,20 @@
               <option value="5v">Shorted to 5V</option>
             </select>
           </div>
+        </div>
+      </div>
+      <div class="ecu-sw-box" style="margin-top:10px;">
+        <h4>Panel Switches</h4>
+        <div class="sw-row"><span>Fuel Pump 1</span><input type="checkbox" id="sw-pump1" checked onchange="updatePumps()" /></div>
+        <div class="sw-row"><span>Fuel Pump 2</span><input type="checkbox" id="sw-pump2" onchange="updatePumps()" /></div>
+        <div class="sw-row">
+          <span>ECU Select (grounds the other ECU's Fuel Injectors Enable)</span>
+          <select id="sel-ecu-select" onchange="setEcuSelect(this.value)" style="background:#0b0f17;color:#fff;border:1px solid #26354d;border-radius:4px;padding:2px 4px;font-size:11px;">
+            <option value="1" selected>ECU 1</option>
+            <option value="2">ECU 2</option>
+            <option value="both">Both enabled</option>
+            <option value="none">Both grounded</option>
+          </select>
         </div>
       </div>
     </div>
@@ -756,6 +809,7 @@
 <script src="s32_wasm.js"></script>
 <script>
 let M = null;
+let booted = false;
 let simSpeed = 1;
 let lastFrameWall = performance.now();
 let measuredRate = 0;
@@ -988,12 +1042,15 @@ function rebootSystem() {
   const mag1 = parseFloat(document.getElementById("in-mag1").value) || 80;
   const mag2 = parseFloat(document.getElementById("in-mag2").value) || 77;
   const rc = M._s32_wasm_boot(cyl, mag1, mag2);
+  booted = rc === 0;
   if (rc === 0) {
     updateEngine();
     updateSensors();
     updateSwitches(0);
     updateSwitches(1);
     updateTpsFault();
+    updateMapFault();
+    updatePumps();
     document.getElementById("status-dot").className = "dot live";
     document.getElementById("status-text").textContent = M._s32_wasm_have_ct() ? "Running" : ECU_ONLY_MSG;
   } else {
@@ -1048,10 +1105,12 @@ function clearFaultsPreset() {
   document.getElementById("sw-e1-lnk").checked = true;
   document.getElementById("sw-e2-lnk").checked = true;
   document.getElementById("sel-e2-tps").value = "none";
+  document.getElementById("sel-e1-map").value = "none";
   document.getElementById("sl-noise").value = "0";
   updateSwitches(0);
   updateSwitches(1);
   updateTpsFault();
+  updateMapFault();
   updateSensors();
 }
 
@@ -1068,6 +1127,43 @@ function updateTpsFault() {
     M._s32_wasm_set_tps_fault(1, -1, 0);
     updateSensors();
   }
+}
+
+function telemetry() {
+  return JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json()));
+}
+
+// A harness knob by name (emu/common/s32board.c), as the command line sets it from the environment.
+function setKnob(name, value) {
+  return M.ccall("s32_wasm_knob", "number", ["string", "string"], [name, value]);
+}
+
+// ECU 1's MAP input: its sensor, or a wire fault from now on.
+function updateMapFault() {
+  if (!M || !booted) return;
+  const mode = document.getElementById("sel-e1-map").value;
+  M.ccall("s32_wasm_set_an_fault", "number", ["number", "number", "string"], [0, 5, mode === "none" ? "" : mode]);
+}
+
+// The fuel pump switches as the Controller's pump inputs see them, moved now.
+function updatePumps() {
+  if (!M || !booted) return;
+  const t = (telemetry().time_s + 0.001).toFixed(4);
+  const pos = (id) => (document.getElementById(id).checked ? "on" : "off");
+  setKnob("S32_SWITCH", `${t}:pump1=${pos("sw-pump1")},${t}:pump2=${pos("sw-pump2")}`);
+}
+
+// The ECU Select switch grounds the Fuel Injectors Enable wire of the ECU that is not selected.
+function setEcuSelect(v) {
+  document.getElementById("sw-e1-inj").checked = v === "1" || v === "both";
+  document.getElementById("sw-e2-inj").checked = v === "2" || v === "both";
+  updateSwitches(0);
+  updateSwitches(1);
+}
+
+function showEcuSelect() {
+  const e1 = document.getElementById("sw-e1-inj").checked, e2 = document.getElementById("sw-e2-inj").checked;
+  document.getElementById("sel-ecu-select").value = e1 && e2 ? "both" : e1 ? "1" : e2 ? "2" : "none";
 }
 
 function updateEngine() {
@@ -1121,6 +1217,7 @@ function updateSensors() {
 }
 
 function updateSwitches(k) {
+  showEcuSelect();
   if (!M) return;
   const pfx = k === 0 ? "sw-e1-" : "sw-e2-";
   const pwr = document.getElementById(pfx + "pwr").checked ? 1 : 0;
@@ -1480,6 +1577,182 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
+/* Scenarios: named bench states that a page can link to (?scenario=<id>, optionally &autostart=1) or a visitor picks
+ * from the list. Each one starts from the same power-up (resetBench: the page's default controls with the engine
+ * stopped, a power cycle with the configuration kept, the home page, fuel trim 0 %) and then runs its steps in order:
+ *   ["preset", "cruise" | "takeoff"]   the engine presets above
+ *   ["rpm", n]                          the RPM presets above
+ *   ["set", id, value]                  one control on the page (a slider, checkbox or list), then its own handler
+ *   ["trim", pct]                       turn the knob until both ECUs report that fuel trim
+ *   ["run", secs]                       run the bench for that long
+ * "blank": the configuration chips are erased before the power-up instead of kept. After the steps the bench pauses,
+ * unless the link says autostart=1 or the visitor picked the scenario from the list. */
+const SCENARIOS = [
+  { id: "first-start", title: "First start", blank: true,
+    description: "Blank configuration chips, first power-up, engine stopped.",
+    steps: [["run", 1]] },
+  { id: "runup", title: "Run-up",
+    description: "1800 RPM, both ECUs firing, ECU 1 selected. Try Ignition Enable, the fuel pumps and ECU Select.",
+    steps: [["rpm", 1800], ["set", "sl-map", 20.0], ["set", "sl-tps", 30], ["run", 3]] },
+  { id: "cruise", title: "Cruise",
+    description: "2400 RPM, 24.0 inHg, fuel trim 0 %.",
+    steps: [["preset", "cruise"], ["run", 3]] },
+  { id: "takeoff", title: "Takeoff",
+    description: "2700 RPM, 29.0 inHg, full throttle.",
+    steps: [["preset", "takeoff"], ["run", 3]] },
+  { id: "ecu-silent", title: "ECU 1 silent",
+    description: "Cruise with ECU 1 powered but its data link silent: red ECU1 tab, dashes for its values.",
+    steps: [["preset", "cruise"], ["run", 1], ["set", "sw-e1-lnk", false], ["run", 4]] },
+  { id: "map-fail", title: "MAP sensor failed",
+    description: "Cruise with ECU 1's MAP sensor disconnected. Select ECU 2 to fuel from the other sensor.",
+    steps: [["preset", "cruise"], ["run", 1], ["set", "sel-e1-map", "open"], ["run", 3]] },
+  { id: "ecu-select", title: "Fuel from ECU 2",
+    description: "Cruise with ECU Select on ECU 2: ECU 2 fuels the engine (blue ECU2 tab).",
+    steps: [["preset", "cruise"], ["run", 1], ["set", "sel-ecu-select", "2"], ["run", 3]] },
+  { id: "rpm-limit", title: "Near the RPM limit",
+    description: "2950 RPM. With this configuration the ignition cuts at 3000 RPM: move the RPM slider there.",
+    steps: [["preset", "cruise"], ["rpm", 2950], ["run", 3]] },
+  { id: "trim-lop", title: "Leaned with trim",
+    description: "Cruise with the fuel trim turned to -28 %: the bench AFR reads about 15.5.",
+    steps: [["preset", "cruise"], ["trim", -28], ["run", 3]] },
+];
+
+// The controls a scenario starts from, at the values the page loads with (engine configuration and replay excluded).
+const SCENARIO_CONTROLS = ["sl-rpm", "sl-map", "sl-tps", "sl-afr", "sl-iat", "sl-et", "sl-batt1", "sl-batt2", "sl-noise",
+  "sw-e1-pwr", "sw-e1-lnk", "sw-e1-pld", "sw-e1-inj", "sw-e1-ret", "sel-e1-map",
+  "sw-e2-pwr", "sw-e2-lnk", "sw-e2-pld", "sw-e2-inj", "sw-e2-ret", "sel-e2-tps", "sw-pump1", "sw-pump2"];
+let scenarioBusy = false;
+
+function showScenarioNote(text) {
+  const el = document.getElementById("scn-note");
+  el.textContent = text || "";
+  el.style.display = text ? "" : "none";
+}
+
+function renderScenarioList() {
+  const list = document.getElementById("scn-list");
+  for (const sc of SCENARIOS) {
+    const row = document.createElement("div");
+    row.className = "scn-item";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "secondary";
+    btn.id = "scn-" + sc.id;
+    btn.textContent = sc.title;
+    btn.title = "?scenario=" + sc.id;
+    btn.onclick = () => pickScenario(sc.id);
+    const desc = document.createElement("span");
+    desc.textContent = sc.description;
+    row.append(btn, desc);
+    list.append(row);
+  }
+}
+
+// Run the bench for secs of emulated time in short slices, drawing the panel between them.
+async function advance(secs) {
+  for (let left = Math.round(secs * 10000); left > 0;) {
+    const n = Math.min(2500, left);
+    M._s32_wasm_step_quanta(n);
+    left -= n;
+    renderLcdFrame(M._s32_wasm_render_rgba());
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  renderTelemetry(telemetry());
+}
+
+async function setTrim(target) {
+  for (let tries = 0; tries < 4; tries++) {
+    const trim = telemetry().trim_pct;
+    if (trim[0] === target && trim[1] === target) return;
+    if (trim[0] !== target) M._s32_wasm_encoder_turn(target - trim[0]);
+    await advance(Math.abs(target - trim[0]) * 0.135 + 1.5);   /* one detent per 0.135 s, then the status frames */
+  }
+  throw new Error(`the fuel trim did not reach ${target} %`);
+}
+
+async function resetBench(blank) {
+  replayPlaying = false;
+  if (afrManualOverride) resetAfrAuto();
+  for (const id of SCENARIO_CONTROLS) {
+    const el = document.getElementById(id);
+    if (el.type === "checkbox") el.checked = el.defaultChecked;
+    else if (el.tagName === "SELECT") el.value = Array.from(el.options).find((o) => o.defaultSelected)?.value ?? el.options[0].value;
+    else el.value = el.defaultValue;
+  }
+  document.getElementById("sl-rpm").value = "0";          /* the panel powers up with the engine stopped */
+  if (blank) {
+    for (const target of [0, 1, 2]) M._s32_wasm_clear_fram(target);
+    document.getElementById("sel-cyl").value = "4";      /* the stock firmware's default configuration */
+  }
+  rebootSystem();
+  if (!booted) throw new Error("the bench did not boot");
+  for (let waited = 0; M._s32_wasm_have_ct() && M._s32_wasm_home_seen() < 0 && waited < 20; waited += 0.5) await advance(0.5);
+  await advance(1.0);
+  if (!blank) await setTrim(0);
+}
+
+const SCENARIO_ACTIONS = {
+  preset: (name) => ({ cruise: setCruisePreset, takeoff: setTakeoffPreset })[name](),
+  rpm: (rpm) => setRpmPreset(rpm),
+  set: (id, value) => {
+    const el = document.getElementById(id);
+    if (el.type === "checkbox") el.checked = value;
+    else el.value = String(value);
+    el.dispatchEvent(new Event(el.type === "range" ? "input" : "change"));
+  },
+  trim: (pct) => setTrim(pct),
+  run: (secs) => advance(secs),
+};
+
+async function runScenario(id, keepRunning) {
+  const sc = SCENARIOS.find((x) => x.id === id);
+  if (!sc) {
+    showScenarioNote(`No scenario named "${id}". The bench runs normally.`);
+    window.S32_SCENARIO = { id, state: "unknown" };
+    return;
+  }
+  if (!M || !booted) {
+    showScenarioNote(`${sc.title}: load firmware first.`);
+    window.S32_SCENARIO = { id, state: "no-firmware" };
+    return;
+  }
+  if (scenarioBusy) return;
+  scenarioBusy = true;
+  window.S32_SCENARIO = { id, state: "running" };
+  for (const x of SCENARIOS) document.getElementById("scn-" + x.id).classList.toggle("active", x.id === id);
+  showScenarioNote(`Setting up: ${sc.title}…`);
+  setSimSpeed(0);
+  try {
+    await resetBench(!!sc.blank);
+    for (const [action, ...args] of sc.steps) await SCENARIO_ACTIONS[action](...args);
+    renderMapTable();
+    setSimSpeed(keepRunning ? 1 : 0);
+    showScenarioNote(keepRunning ? "" : `${sc.title}: paused. Press 1× to run.`);
+    window.S32_SCENARIO = { id, state: "done" };
+  } catch (e) {
+    setSimSpeed(1);
+    showScenarioNote(`${sc.title}: ${e.message}`);
+    window.S32_SCENARIO = { id, state: "error", error: e.message };
+  } finally {
+    scenarioBusy = false;
+  }
+}
+
+function pickScenario(id) {
+  const u = new URL(location.href);
+  u.searchParams.set("scenario", id);
+  u.searchParams.delete("autostart");
+  history.replaceState(null, "", u);
+  runScenario(id, true);
+}
+
+function scenarioFromUrl() {
+  const q = new URLSearchParams(location.search);
+  if (q.has("scenario")) runScenario(q.get("scenario"), q.get("autostart") === "1");
+}
+
+renderScenarioList();
+
 // Default firmware. The manifest names the files, their SHA-256 and, optionally, how the page labels them ("label",
 // "note"): the emulator repository's `make bench-site` writes one for the stock v86 update files, which are FlyEFII's
 // copyright and come from release assets (firmware/manifest.json, firmware/LICENSE-FIRMWARE). A site that serves this
@@ -1523,7 +1796,7 @@ createS32Module().then((mod) => {
   requestAnimationFrame(tick);
   loadDefaultFirmware().catch((e) => {
     document.getElementById("status-text").textContent = "Default firmware refused: " + e.message + ". " + NO_FIRMWARE_MSG;
-  });
+  }).then(scenarioFromUrl);
 });
 </script>
 </body>
