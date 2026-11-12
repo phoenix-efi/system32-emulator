@@ -222,50 +222,60 @@
   .tog .lever { transform-box: view-box; transform-origin: 22px 36px; transition: transform 0.12s ease-out; }
   .tog[aria-checked="false"] .lever, .tog[data-value="2"] .lever { transform: scaleY(-1); }
   .tog-n { font-size: 12px; font-weight: 650; }
-  .thr { margin-top: 26px; }
-  .thr-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .thr input[type="range"] {
-    -webkit-appearance: none; appearance: none; width: 100%; height: 34px; margin: 6px 0 0; background: transparent;
-    cursor: pointer;
+  /* The power quadrant: throttle (black knob) and prop (blue knob), forward = up */
+  .pow {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: start;
+    margin-top: 24px; padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.07);
+    --lev-h: 156px; --slot-w: 44px; --mark-w: 58px; --knob-h: 24px;
   }
-  .thr input[type="range"]::-webkit-slider-runnable-track {
-    height: 8px; border-radius: 4px; background: #0d0e10;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.07);
+  .quad {
+    display: flex; gap: 18px; padding: 14px 12px 12px; border-radius: 10px; background: #18191b;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.05);
   }
-  .thr input[type="range"]::-moz-range-track {
-    height: 8px; border-radius: 4px; background: #0d0e10;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.07);
+  .lev { display: grid; grid-template-rows: var(--lev-h) auto; column-gap: 4px; row-gap: 10px; }
+  .lev.throttle { grid-template-columns: var(--mark-w) var(--slot-w); }
+  .lev.prop { grid-template-columns: var(--slot-w) var(--mark-w); }
+  .lev-name { grid-row: 2; grid-column: 1 / -1; }
+  .lev.throttle .lev-name { text-align: right; }
+  .lev.prop .lev-name { text-align: left; }
+  .lev-slot { position: relative; height: var(--lev-h); width: var(--slot-w); cursor: ns-resize; touch-action: none; border-radius: 8px; }
+  .lev.throttle .lev-slot { grid-column: 2; grid-row: 1; }
+  .lev.throttle .lev-marks { grid-column: 1; grid-row: 1; }
+  .lev-slot::before {
+    content: ""; position: absolute; left: 50%; top: 4px; bottom: 4px; width: 10px; margin-left: -5px; border-radius: 5px;
+    background: #0a0b0c; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.95), 0 1px 0 rgba(255, 255, 255, 0.07);
   }
-  .thr input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -10px; border-radius: 50%;
-    background: radial-gradient(circle at 36% 30%, #66676d 0%, #2a2b2f 50%, #141517 100%);
-    border: 1px solid #000; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+  .lev-knob {
+    position: absolute; left: 0; width: 100%; height: var(--knob-h); border-radius: calc(var(--knob-h) / 2);
+    top: calc((1 - var(--v, 0)) * (var(--lev-h) - var(--knob-h)));
+    border: 1px solid #000; box-shadow: 0 3px 6px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    background: radial-gradient(ellipse at 40% 25%, #6a6b70 0%, #2a2b2f 45%, #121315 100%);
   }
-  .thr input[type="range"]::-moz-range-thumb {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: radial-gradient(circle at 36% 30%, #66676d 0%, #2a2b2f 50%, #141517 100%);
-    border: 1px solid #000; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+  .lev.prop .lev-knob {
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.13) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg, #4b7fe6 0%, #2353b8 55%, #173c88 100%);
   }
-  .thr-marks { position: relative; height: 26px; margin: 0 14px; }
-  .thr-mark {
-    position: absolute; top: 0; transform: translateX(-50%); background: none; border: none; padding: 6px 2px 0;
-    font-size: 10px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hw-engrave-2);
-    cursor: pointer; white-space: nowrap;
+  .lev-marks { position: relative; height: var(--lev-h); }
+  .lev-mark {
+    position: absolute; top: calc(var(--knob-h) / 2 + (1 - var(--v)) * (var(--lev-h) - var(--knob-h)));
+    transform: translateY(-50%); background: none; border: none; padding: 2px 0; cursor: pointer; white-space: nowrap;
+    font-size: 9.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hw-engrave-2);
+    display: flex; align-items: center; gap: 4px;
   }
-  .thr-mark::before {
-    content: ""; position: absolute; left: 50%; top: 0; width: 1px; height: 5px; background: var(--hw-engrave-2);
-  }
-  .thr-mark:hover { color: var(--hw-engrave); }
-  .thr-mark.first { transform: translateX(-14px); }
-  .thr-mark.first::before { left: 14px; }
-  .thr-mark.last { transform: translateX(calc(-100% + 14px)); }
-  .thr-mark.last::before { left: auto; right: 14px; }
-  .eng { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
-  .eng-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; margin-top: 10px; }
+  .lev-mark::after, .lev.prop .lev-mark::before { content: ""; width: 5px; height: 1px; background: var(--hw-engrave-2); }
+  .lev.prop .lev-mark::after { display: none; }
+  .lev.throttle .lev-mark { right: 0; }
+  .lev.prop .lev-mark { left: 0; }
+  .lev-mark:hover { color: var(--hw-engrave); }
+  .lev-slot:focus-visible { outline-offset: 2px; }
+  .eng { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   .ro-label { font-size: 10px; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hw-engrave-2); }
-  .ro-val { font-size: 28px; line-height: 1.1; font-weight: 500; color: #f4f4f0; font-variant-numeric: tabular-nums; }
+  .ro-val { font-size: 30px; line-height: 1.1; font-weight: 500; color: #f4f4f0; font-variant-numeric: tabular-nums; }
   .ro-val small { font-size: 12px; color: var(--hw-engrave-2); margin-left: 4px; font-weight: 500; }
-  .lamps { display: flex; gap: 12px; align-items: center; padding-bottom: 6px; font-size: 12px; font-weight: 650; }
+  .spark { padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.07); cursor: help; }
+  .spark-note { font-size: 10.5px; line-height: 1.35; color: var(--hw-engrave-2); margin-top: 6px; }
+  .lamps { display: flex; gap: 12px; align-items: center; margin-top: 6px; font-size: 12px; font-weight: 650; }
   .lamp-wrap { display: inline-flex; align-items: center; gap: 5px; }
   .lamp {
     width: 11px; height: 11px; border-radius: 50%; background: #2e3033; display: inline-block;
@@ -278,8 +288,17 @@
     .sw-groups { --tog-w: 40px; --tog-h: 66px; gap: 6px; }
     .legend { width: 20px; font-size: 9px; }
     .grp .engr { font-size: 9.5px; letter-spacing: 0.08em; }
+    .pow { --slot-w: 40px; --mark-w: 46px; --lev-h: 140px; gap: 14px; }
+    .quad { gap: 10px; padding: 12px 8px 10px; }
+    .lev-mark { font-size: 9px; letter-spacing: 0.04em; }
     .ro-val { font-size: 24px; }
-    .eng-row { gap: 10px; }
+  }
+  /* Narrower still (the embed beside the Controller): the engine readouts under the levers. */
+  @container (max-width: 290px) {
+    .pow { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+    .eng { flex-direction: row; flex-wrap: wrap; justify-content: space-between; width: 100%; gap: 10px 16px; }
+    .spark { border-top: none; padding-top: 0; }
+    .spark-note { display: none; }
   }
 
   .about p { margin: 0; color: var(--ink-2); max-width: 46ch; }
@@ -290,6 +309,9 @@
   .bench { border-top: 1px solid var(--line); padding: 16px 0; }
   .bench summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
   .bench p { margin: 10px 0 6px; color: var(--ink-2); max-width: 70ch; }
+  .bench-set { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0 14px; }
+  .bench-set label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .bench-set select { width: auto; max-width: 100%; font-size: 14px; padding: 6px 8px; }
   .notice { padding: 16px 0 36px; font-size: 12px; color: var(--muted); }
   .notice p { margin: 0 0 4px; }
 
@@ -311,7 +333,7 @@
   html.embed .top, html.embed .scn, html.embed .about, html.embed .bench, html.embed .notice .full,
   html.embed .cc-help { display: none; }
   html.embed .wrap { padding: 0 12px; }
-  html.embed .cockpit { padding: 12px 0 8px; gap: 28px; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; }
+  html.embed .cockpit { padding: 12px 0 8px; gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
   @media (max-width: 680px) { html.embed .cockpit { grid-template-columns: minmax(0, 1fr); } }
   html.embed .notice { padding: 0 0 10px; font-size: 11px; text-align: center; }
   html:not(.embed) .notice .short { display: none; }
@@ -392,23 +414,31 @@
           </div>
         </div>
 
-        <div class="thr">
-          <div class="thr-head"><label class="engr" for="throttle">Throttle</label></div>
-          <input type="range" id="throttle" min="0" max="100" step="1" value="55" />
-          <div class="thr-marks" id="thr-marks"></div>
-        </div>
-
-        <div class="eng">
-          <span class="engr">Engine</span>
-          <div class="eng-row">
+        <div class="pow">
+          <div class="quad">
+            <div class="lev throttle">
+              <div class="lev-marks" id="throttle-marks"></div>
+              <div class="lev-slot" id="throttle" role="slider" tabindex="0" aria-label="Throttle" aria-valuemin="0"
+                   aria-valuemax="100" aria-valuenow="0"><span class="lev-knob"></span></div>
+              <span class="engr lev-name">Throttle</span>
+            </div>
+            <div class="lev prop">
+              <div class="lev-slot" id="prop" role="slider" tabindex="0" aria-label="Prop" aria-valuemin="0"
+                   aria-valuemax="100" aria-valuenow="100"><span class="lev-knob"></span></div>
+              <div class="lev-marks" id="prop-marks"></div>
+              <span class="engr lev-name">Prop</span>
+            </div>
+          </div>
+          <div class="eng">
             <div><div class="ro-label">RPM</div><div class="ro-val" id="ro-rpm">0</div></div>
-            <div><div class="ro-label">MAP</div><div class="ro-val"><span id="ro-map">24.0</span><small>inHg</small></div></div>
-            <div>
-              <div class="ro-label">Ignition</div>
+            <div><div class="ro-label">MAP</div><div class="ro-val"><span id="ro-map">29.9</span><small>inHg</small></div></div>
+            <div class="spark" title="Spark (emulator): lit while that ECU fires its coils. The emulator shows it; it is not a cockpit item.">
+              <div class="ro-label">Spark (emulator)</div>
               <div class="lamps">
                 <span class="lamp-wrap"><span class="lamp" id="lamp-1"></span>1</span>
                 <span class="lamp-wrap"><span class="lamp" id="lamp-2"></span>2</span>
               </div>
+              <div class="spark-note">Lit while that ECU fires. Not a cockpit item.</div>
             </div>
           </div>
         </div>
@@ -426,6 +456,18 @@
     <summary>Bench</summary>
     <p>The bench has every engine and sensor control, the fault switches, the fuel and ignition maps, and a place to
       load your own firmware files.</p>
+    <div class="bench-set">
+      <label>Low-pitch stop
+        <select id="set-prop-stop">
+          <option value="correct">Correct: 2700 RPM at full throttle on the stop</option>
+          <option value="fine">Too fine: 3150 RPM at full throttle on the stop</option>
+        </select></label>
+      <label>Governor
+        <select id="set-governor">
+          <option value="working">Working</option>
+          <option value="failed">Failed: the blades stay on the low-pitch stop</option>
+        </select></label>
+    </div>
     <a id="bench-link" href="index.html">Open the bench at this scenario</a>
   </details>
 
@@ -485,10 +527,33 @@ const FACE = {
   knobDegPerClick: 18,
 };
 
-/* One throttle: its position sets engine speed, manifold pressure and the throttle sensor together, along these points
- * (throttle %, RPM, MAP inHg). Run-up, Cruise and Full are the bench page's presets. */
-const THROTTLE = [[0, 750, 12.0], [30, 1800, 20.0], [55, 2400, 24.0], [100, 2700, 29.0]];
-const THROTTLE_MARKS = [["Idle", 0], ["Run-up", 30], ["Cruise", 55], ["Full", 100]];
+/* The engine: a simple bench model of an engine with a constant-speed propeller, made up for this page (not aircraft
+ * data). It sets the bench's RPM, MAP and throttle sensor from the two levers and from the sparks the ECUs fire.
+ *   power      the RPM the engine reaches with the blades on a correctly set low-pitch stop, both ECUs firing,
+ *              against the throttle (0..1); a stop set elsewhere scales the part above idle (stops: the RPM at full
+ *              throttle on the stop)
+ *   governor   the prop lever (0..1) sets the governed RPM, low to high; a working governor holds RPM at that value
+ *              whenever the power would turn the engine faster; below it the throttle sets the RPM
+ *   oneEcu     the share of power with only one ECU firing; with none the engine winds down and stops below stopBelow
+ *   closedMap  MAP with the throttle closed, against RPM (ambient when stopped); opening: the share of the way from
+ *              there to fullMap, against the throttle. So MAP rises with throttle and falls a little as RPM rises.
+ *   tau        how fast RPM follows: up, down, and winding down with no spark (seconds)
+ *   startHold  after a scenario starts the engine, RPM is held this long while the ECUs pick up the crank signal
+ * An ECU counts as firing while its first coil fires at least half as often as the RPM calls for (once per
+ * revolution), measured over the last `window` seconds. Mixture, fuel and temperatures do not change the RPM. */
+const ENGINE = {
+  power: [[0, 750], [0.25, 1800], [0.5, 2520], [0.65, 2620], [1, 2700]],
+  stops: { correct: 2700, fine: 3150 },
+  governor: [2000, 2700],
+  oneEcu: 0.85,
+  closedMap: [[0, 29.9], [750, 12.0], [2700, 10.0]],
+  opening: [[0, 0], [0.25, 0.45], [0.5, 0.7], [0.65, 0.8], [1, 1]],
+  fullMap: 29.0,
+  tau: { up: 0.4, down: 0.6, nospark: 1.5 },
+  stopBelow: 200,
+  startHold: 1.0,
+  window: 0.3,
+};
 
 let M = null;
 let booted = false;
@@ -565,7 +630,6 @@ function reboot() {
     applyMapFault();
     applyPumps();
   }
-  resetLamps();
 }
 
 // One bench control by its id on the bench page, then what that control drives.
@@ -575,6 +639,8 @@ function setControl(id, value) {
     bench["sw-e2-inj"] = value === "2" || value === "both";
     applyEcu(0);
     applyEcu(1);
+  } else if (id === "prop-stop" || id === "governor") {   // the propeller's bench settings
+    eng[id === "prop-stop" ? "stop" : "governor"] = value;
   } else if (!(id in BENCH_DEFAULTS)) {
     throw new Error(`no control ${id} on the cockpit page`);
   } else {
@@ -590,30 +656,132 @@ function setControl(id, value) {
   showControls();
 }
 
-function setEngine(rpm, map, tps) {
-  bench["sl-rpm"] = rpm;
-  if (map !== undefined) bench["sl-map"] = map;
-  if (tps !== undefined) bench["sl-tps"] = tps;
-  applyEngine();
-  applySensors();
+/* ---- The engine model (ENGINE) ---- */
+
+const eng = { throttle: 0, prop: 1, stop: "correct", governor: "working", rpm: 0, hold: -1, firing: [false, false],
+              hist: [], last: null };
+
+function interp(table, x) {
+  if (x <= table[0][0]) return table[0][1];
+  for (let i = 1; i < table.length; i++) {
+    const [x0, y0] = table[i - 1], [x1, y1] = table[i];
+    if (x <= x1) return y0 + (x - x0) / (x1 - x0) * (y1 - y0);
+  }
+  return table[table.length - 1][1];
+}
+
+function powerRpm(throttle) {
+  const idle = ENGINE.power[0][1];
+  return idle + (interp(ENGINE.power, throttle) - idle) * (ENGINE.stops[eng.stop] - idle) / (ENGINE.stops.correct - idle);
+}
+
+const governedRpm = (prop) => ENGINE.governor[0] + prop * (ENGINE.governor[1] - ENGINE.governor[0]);
+
+function manifold(throttle, rpm) {
+  const closed = interp(ENGINE.closedMap, rpm);
+  return closed + (ENGINE.fullMap - closed) * interp(ENGINE.opening, throttle);
+}
+
+// The RPM the engine settles at with this share of its power.
+function engineTarget(share) {
+  let rpm = share > 0 ? powerRpm(eng.throttle) * Math.cbrt(share) : 0;
+  if (eng.governor === "working") rpm = Math.min(rpm, governedRpm(eng.prop));
+  return rpm;
+}
+
+// The throttle (0..1) that gives this MAP at this RPM.
+function throttleFor(map, rpm) {
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (manifold(mid, rpm) < map) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+const propFor = (rpm) => (rpm - ENGINE.governor[0]) / (ENGINE.governor[1] - ENGINE.governor[0]);
+
+// The bench's RPM, MAP and throttle sensor from the model.
+function engineOut() {
+  const rpm = Math.round(eng.rpm), map = Math.round(manifold(eng.throttle, eng.rpm) * 100) / 100;
+  const tps = Math.round(eng.throttle * 1000) / 10;
+  if (rpm !== bench["sl-rpm"]) { bench["sl-rpm"] = rpm; applyEngine(); }
+  if (map !== bench["sl-map"] || tps !== bench["sl-tps"]) { bench["sl-map"] = map; bench["sl-tps"] = tps; applySensors(); }
+}
+
+function engineStop() {
+  eng.rpm = 0;
+  eng.hold = -1;
+  eng.firing = [false, false];
+  eng.hist = [];
+  engineOut();
+}
+
+// Set the levers and the propeller's bench settings to a scenario's quadrant and start the engine at the speed they
+// give with both ECUs firing.
+function engineQuadrant(q) {
+  if (!q) return;
+  eng.stop = q.stop || "correct";
+  eng.governor = q.governor || "working";
+  eng.prop = q.rpm !== undefined ? propFor(q.rpm) : (q.prop ?? 100) / 100;
+  eng.throttle = q.map !== undefined ? throttleFor(q.map, governedRpm(eng.prop)) : (q.throttle ?? 0) / 100;
+  eng.rpm = Math.min(engineTarget(1), 2900);
+  eng.hold = M && booted ? telemetry().time_s + ENGINE.startHold : -1;
+  eng.firing = [true, true];
+  eng.hist = [];
+  engineOut();
   showControls();
 }
 
-function throttleCurve(pct) {
-  for (let i = 1; i < THROTTLE.length; i++) {
-    const [p0, r0, m0] = THROTTLE[i - 1], [p1, r1, m1] = THROTTLE[i];
-    if (pct <= p1) {
-      const f = (pct - p0) / (p1 - p0);
-      return [Math.round((r0 + f * (r1 - r0)) / 10) * 10, Math.round((m0 + f * (m1 - m0)) * 10) / 10];
-    }
+// One step of the model, from the bench's telemetry after the bench ran.
+function engineUpdate(t) {
+  const now = t.time_s, sp = t.ecu.map((e) => e.coils[0].sparks);
+  if (eng.last === null || now < eng.last || (eng.hist.length && sp.some((v, k) => v < eng.hist[eng.hist.length - 1][1][k]))) {
+    eng.last = now;                    // a power cycle: time and spark counts start again
+    eng.hist = [[now, sp]];
+    return;
   }
-  const last = THROTTLE[THROTTLE.length - 1];
-  return [last[1], last[2]];
+  const dt = now - eng.last;
+  if (dt <= 0) return;
+  eng.last = now;
+  eng.hist.push([now, sp]);
+  while (eng.hist.length > 2 && now - eng.hist[1][0] >= ENGINE.window) eng.hist.shift();
+  const [t0, s0] = eng.hist[0], span = now - t0;
+  if (eng.rpm <= 0) eng.firing = [false, false];
+  else if (span >= ENGINE.window / 2) {
+    for (const k of [0, 1]) eng.firing[k] = (sp[k] - s0[k]) / (eng.rpm / 60 * span) >= 0.5;
+  }
+  if (eng.rpm <= 0 || now < eng.hold) return;
+  const n = eng.firing.filter(Boolean).length;
+  const share = n === 2 ? 1 : n === 1 ? ENGINE.oneEcu : 0;
+  const target = engineTarget(share);
+  const tau = share === 0 ? ENGINE.tau.nospark : target > eng.rpm ? ENGINE.tau.up : ENGINE.tau.down;
+  eng.rpm += (target - eng.rpm) * Math.min(1, dt / tau);
+  if (share === 0 && eng.rpm < ENGINE.stopBelow) eng.rpm = 0;
+  engineOut();
 }
 
-function setThrottle(pct) {
-  const [rpm, map] = throttleCurve(pct);
-  setEngine(rpm, map, pct);
+// Run the bench, the engine model with it (0.05 s steps).
+function stepSim(quanta) {
+  for (let left = quanta; left > 0;) {
+    const n = Math.min(500, left);
+    M._s32_wasm_step_quanta(n);
+    left -= n;
+    if (booted) engineUpdate(telemetry());
+  }
+}
+
+// Run the bench for secs of emulated time, then draw (for a test, or a page that embeds this one).
+function runBench(secs) {
+  stepSim(Math.round(secs * 10000));
+  refresh();
+  renderLcdFrame(M._s32_wasm_render_rgba());
+}
+
+function setLever(which, pct) {
+  eng[which] = Math.min(100, Math.max(0, pct)) / 100;
+  if (eng.rpm > 0) engineOut();
+  showControls();
 }
 
 /* ---- What the page shows of the bench ---- */
@@ -625,28 +793,20 @@ function showControls() {
   const sel = $("sw-select");
   sel.dataset.value = ecuSelect();
   sel.setAttribute("aria-label", `ECU Select: ${ecuSelect()}`);
-  $("throttle").value = String(bench["sl-tps"]);
+  for (const which of ["throttle", "prop"]) {
+    const el = $(which), v = Math.round(eng[which] * 1000) / 10;
+    el.style.setProperty("--v", eng[which]);
+    el.setAttribute("aria-valuenow", String(v));
+  }
   $("ro-map").textContent = Number(bench["sl-map"]).toFixed(1);
+  $("set-prop-stop").value = eng.stop;
+  $("set-governor").value = eng.governor;
 }
 
-// The ignition lights: an ECU's light is on while its coil outputs fire (more than 5 sparks a second).
-let sparkMark = null;
-const lamps = [false, false];
-
-function resetLamps() {
-  sparkMark = null;
-}
-
+// The Spark (emulator) lights: an ECU's light is on while the engine model counts it as firing.
 function showReadouts(t) {
   $("ro-rpm").textContent = String(Math.round(t.rpm));
-  const sp = t.ecu.map((e) => e.coils[0].sparks);
-  if (!sparkMark || t.time_s < sparkMark.t || sp.some((v, k) => v < sparkMark.sp[k])) {
-    sparkMark = { t: t.time_s, sp };
-  } else if (t.time_s - sparkMark.t >= 0.25) {
-    for (const k of [0, 1]) lamps[k] = (sp[k] - sparkMark.sp[k]) / (t.time_s - sparkMark.t) > 5;
-    sparkMark = { t: t.time_s, sp };
-  }
-  for (const k of [0, 1]) $("lamp-" + (k + 1)).classList.toggle("on", lamps[k]);
+  for (const k of [0, 1]) $("lamp-" + (k + 1)).classList.toggle("on", eng.firing[k]);
 }
 
 function refresh() {
@@ -867,23 +1027,55 @@ function buildSwitches() {
       else setControl(el.dataset.ctl, !bench[el.dataset.ctl]);
     });
   }
-  const thr = $("throttle");
-  thr.addEventListener("input", () => {
-    if (!interact()) { showControls(); return; }
-    setThrottle(Number(thr.value));
-  });
-  const marks = $("thr-marks");
-  THROTTLE_MARKS.forEach(([name, pct], i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "thr-mark" + (i === 0 ? " first" : i === THROTTLE_MARKS.length - 1 ? " last" : "");
-    b.id = "thr-" + name.toLowerCase().replace(/[^a-z]/g, "");
-    b.style.left = pct + "%";
-    b.textContent = name;
-    b.title = `Throttle to ${name}`;
-    b.addEventListener("click", () => { if (interact()) setThrottle(pct); });
-    marks.append(b);
-  });
+  // The levers: drag (forward = up), the arrow keys, or a click on a mark.
+  const LEVER_MARKS = { throttle: [["Full", 100], ["Cruise", throttleFor(24.0, 2400) * 100], ["Run-up", 25], ["Idle", 0]],
+                        prop: [["High", 100], ["Cruise", propFor(2400) * 100], ["Low", 0]] };
+  for (const which of ["throttle", "prop"]) {
+    const slot = $(which), knob = slot.querySelector(".lev-knob");
+    const valueAt = (y) => {
+      const r = slot.getBoundingClientRect(), h = knob.offsetHeight;
+      return 100 * (1 - (y - r.top - h / 2) / (r.height - h));
+    };
+    let dragging = null;
+    slot.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || !interact()) return;
+      e.preventDefault();
+      slot.focus({ preventScroll: true });
+      const r = knob.getBoundingClientRect();
+      const onKnob = e.clientY >= r.top && e.clientY <= r.bottom;
+      dragging = { id: e.pointerId, offset: onKnob ? e.clientY - (r.top + r.height / 2) : 0 };
+      slot.setPointerCapture(e.pointerId);
+      setLever(which, valueAt(e.clientY - dragging.offset));
+    });
+    slot.addEventListener("pointermove", (e) => {
+      if (dragging && e.pointerId === dragging.id) setLever(which, valueAt(e.clientY - dragging.offset));
+    });
+    const end = () => { dragging = null; };
+    slot.addEventListener("pointerup", end);
+    slot.addEventListener("pointercancel", end);
+    slot.addEventListener("keydown", (e) => {
+      const step = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10 }[e.key];
+      const to = e.key === "Home" ? 0 : e.key === "End" ? 100 : null;
+      if (step === undefined && to === null) return;
+      e.preventDefault();
+      if (!interact()) return;
+      setLever(which, to !== null ? to : eng[which] * 100 + step);
+    });
+    for (const [name, pct] of LEVER_MARKS[which]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "lev-mark";
+      b.id = `${which}-${name.toLowerCase().replace(/[^a-z]/g, "")}`;
+      b.style.setProperty("--v", pct / 100);
+      b.textContent = name;
+      b.title = `${which === "prop" ? "Prop lever" : "Throttle"} to ${name}`;
+      b.addEventListener("click", () => { if (interact()) setLever(which, pct); });
+      $(which + "-marks").append(b);
+    }
+  }
+  for (const [id, key] of [["set-prop-stop", "prop-stop"], ["set-governor", "governor"]]) {
+    $(id).addEventListener("change", () => { if (M && booted && !scenarios.busy()) setControl(key, $(id).value); else showControls(); });
+  }
   $("cc-chord").addEventListener("click", () => { if (interact()) M._s32_wasm_button_pulse(0b1100, 1500); });
 }
 
@@ -967,18 +1159,21 @@ const scenarios = s32ScenarioRunner({
   M: () => M,
   booted: () => booted,
   reboot,
+  stepSim,
   draw: () => renderLcdFrame(M._s32_wasm_render_rgba()),
   refresh,
   resetControls(blank) {
     Object.assign(bench, BENCH_DEFAULTS);
-    bench["sl-rpm"] = 0;                 // the panel powers up with the engine stopped
+    Object.assign(eng, { throttle: 0, prop: 1, stop: "correct", governor: "working" });
+    engineStop();                        // the panel powers up with the engine stopped
     if (blank) cylinders = 4;            // the stock firmware's default configuration
     showControls();
   },
+  // The engine steps of a scenario set the levers to its quadrant; the engine model does the rest.
   actions: {
-    preset: (name) => ({ cruise: () => setEngine(2400, 24.0, 55), takeoff: () => setEngine(2700, 29.0, 100) })[name](),
-    rpm: (rpm) => setEngine(rpm),
-    set: setControl,
+    preset: () => engineQuadrant(current.quadrant),
+    rpm: () => engineQuadrant(current.quadrant),
+    set: (id, value) => (["sl-rpm", "sl-map", "sl-tps"].includes(id) ? engineQuadrant(current.quadrant) : setControl(id, value)),
   },
   setSpeed,
   note(kind, sc, err) {
@@ -1048,7 +1243,7 @@ function tick() {
   const dtMs = Math.min(50, Math.max(1, now - lastFrameWall));
   lastFrameWall = now;
   if (M && booted && simSpeed > 0 && !scenarios.busy()) {
-    M._s32_wasm_step_quanta(Math.round(dtMs * 10));
+    stepSim(Math.round(dtMs * 10));
     renderLcdFrame(M._s32_wasm_render_rgba());
     if (++frameCounter % 6 === 0) refresh();
   }
@@ -1065,6 +1260,7 @@ async function loadDefaultFirmware() {
   reboot();
   if (!booted) return false;
   if (M._s32_wasm_step_quanta(20000) === 0) reboot();
+  if (booted) engineStop();
   return booted;
 }
 

@@ -16,15 +16,16 @@ On the bench page it also checks an unknown id (a notice, the bench runs normall
 running), picking a scenario from the list, the follow-up each description promises, and that the page's controls
 start at BENCH_DEFAULTS (s32_bench.js), the values the cockpit page drives.
 
-On the cockpit page it also checks that the switches, the throttle and the RPM readout show the bench's state, then
-goes through every step for the pilot: shows its text, does what it says with the page's own controls (switches,
-buttons, knob, throttle, the step's action button) and checks what its "watch" line says, including which screen the
-Controller shows (read from the panel's pixels) and the ignition lights. Then an unknown id, ?embed=1 (only the
+On the cockpit page, where an engine model sets RPM and MAP from the throttle and prop levers and the sparks, it also
+checks that the switches, the levers and the RPM readout show the bench's state (for rpm-limit: the engine surging at
+the 3000 RPM limit), then goes through every step for the pilot: shows its text, does what it says with the page's own
+controls (switches, buttons, knob, levers, the step's action button) and checks what its "watch" line says, including
+which screen the Controller shows (read from the panel's pixels) and the Spark (emulator) lights. Then an unknown id, ?embed=1 (only the
 Controller and the switches, transparent background) and a 390 px wide phone (no sideways scrolling).
 
 With --shots, saves screenshots: on the bench page the page and the panel for every scenario; on the cockpit page
-runup, ecu-silent, ecu-select and trim-lop at 1440 and 390 px wide, runup in the dark theme too, and the embed. Exit 0
-when every check passes, 1 otherwise.
+runup, ecu-silent, ecu-select and trim-lop at 1440 and 390 px wide, rpm-limit at 1440, runup in the dark theme
+too, and the embed. Exit 0 when every check passes, 1 otherwise.
 """
 from __future__ import annotations
 
@@ -148,7 +149,10 @@ COCKPIT_JS = """
   pump1: document.getElementById("sw-pump1").getAttribute("aria-checked"),
   pump2: document.getElementById("sw-pump2").getAttribute("aria-checked"),
   select: document.getElementById("sw-select").dataset.value,
-  throttle: Number(document.getElementById("throttle").value),
+  throttle: Number(document.getElementById("throttle").getAttribute("aria-valuenow")),
+  prop: Number(document.getElementById("prop").getAttribute("aria-valuenow")),
+  stop: document.getElementById("set-prop-stop").value,
+  governor: document.getElementById("set-governor").value,
   rpm: document.getElementById("ro-rpm").textContent,
   lamps: [1, 2].map((k) => document.getElementById("lamp-" + k).classList.contains("on")),
   step_n: document.getElementById("step-n").textContent,
@@ -178,7 +182,20 @@ DEFAULTS_JS = """
 
 
 def lamps(c: dict, want: tuple[bool, bool]) -> list[tuple[bool, str]]:
-    return [(c["lamps"] == list(want), f"ignition lights {c['lamps']} (want {list(want)})")]
+    return [(c["lamps"] == list(want), f"Spark lights {c['lamps']} (want {list(want)})")]
+
+
+def rpm_in(r: dict, lo: int, hi: int) -> list[tuple[bool, str]]:
+    return [(all(lo <= x <= hi for x in r["rpm"]), f"link RPM {r['rpm']} (want {lo}..{hi})")]
+
+
+def surging(samples: list) -> list[tuple[bool, str]]:
+    """The engine at the RPM limit: up to it, sparks cut, down, sparks again (samples: engine RPM, Spark lights)."""
+    rpms = [x[0] for x in samples]
+    lit = {tuple(x[1]) for x in samples}
+    return [(max(rpms) >= 2990 and min(rpms) <= 2920, f"engine RPM {min(rpms)}..{max(rpms)} (want up to 2990+, down "
+                                                       f"to 2920 or less)"),
+            ((True, True) in lit and (False, False) in lit, f"Spark lights seen {sorted(lit)} (want on and off)")]
 
 
 def screen_is(scr: dict, **want) -> list[tuple[bool, str]]:
@@ -199,27 +216,32 @@ def map_near(r: dict, k: int, want: float, tol: float) -> list[tuple[bool, str]]
 
 # Each pilot step on the cockpit page (SCENARIOS[..].pilot in s32_bench.js), in order: what the test does with the
 # page's controls, and what the step's "watch" line says, as checks. Actions: ("flip", switch id), ("press", button,
-# times) with 1 = Up, 2 = Down, 3 = Back, ("knob", clicks) through the arrow keys, ("throttle", mark id), ("act",) the
-# step's action button, None for a step that only asks the pilot to look. s.b = the readout after the step,
-# s.a = one second earlier, s.r0 = before the step, s.scr = the Controller's screen, s.c = the page's own view.
+# times) with 1 = Up, 2 = Down, 3 = Back, ("knob", clicks) through the arrow keys, ("act",) the
+# step's action button, ("lever", mark id) a click on a throttle or prop mark, None for a step that only asks the
+# pilot to look. s.b = the readout after the step, s.a = 1.5 s earlier, s.r0 = before the step, s.samples = the engine
+# RPM and Spark lights every 0.1 s between them, s.scr = the Controller's screen, s.c = the page's own view.
 GAUGES = {"kind": "gauges"}
 PILOT = {
     "first-start": [
-        (None, lambda s: tabs(s.b, ecu1="red", ecu2="red") + lamps(s.c, (False, False))),
+        (None, lambda s: tabs(s.b, ecu1="red", ecu2="red") + lamps(s.c, (False, False)) + rpm_is(s.b, 0, 0)),
         (("press", 1, 1), lambda s: screen_is(s.scr, kind="menu", title="main", list=True)),
         (("press", 3, 1), lambda s: screen_is(s.scr, **GAUGES)),
         (("act",), lambda s: tabs(s.b, ecu1="blue", ecu2="green")),
     ],
     "runup": [
-        (("flip", "sw-ign1"), lambda s: tabs(s.b, ecu1="red") + firing(s.a, s.b, (False, True)) +
-         lamps(s.c, (False, True))),
-        (("flip", "sw-ign1"), lambda s: tabs(s.b, ecu1="blue") + lamps(s.c, (True, True))),
-        (("flip", "sw-ign2"), lambda s: tabs(s.b, ecu2="red") + firing(s.a, s.b, (True, False))),
-        (("flip", "sw-ign2"), lambda s: tabs(s.b, ecu2="green")),
+        (None, lambda s: rpm_is(s.b, 1800) + [(s.c["prop"] == 100 and s.c["throttle"] == 25,
+                                               f"prop {s.c['prop']} %, throttle {s.c['throttle']} %")]),
+        (("flip", "sw-ign1"), lambda s: rpm_in(s.b, 1680, 1730) + tabs(s.b, ecu1="red") +
+         firing(s.a, s.b, (False, True)) + lamps(s.c, (False, True))),
+        (("flip", "sw-ign1"), lambda s: rpm_is(s.b, 1800) + tabs(s.b, ecu1="blue") + lamps(s.c, (True, True))),
+        (("flip", "sw-ign2"), lambda s: rpm_in(s.b, 1680, 1730) + tabs(s.b, ecu2="red") + firing(s.a, s.b, (True, False))),
+        (("flip", "sw-ign2"), lambda s: rpm_is(s.b, 1800) + tabs(s.b, ecu2="green")),
         (("flip", "sw-pump2"), lambda s: tabs(s.b, pmp2="yellow")),
         (("flip", "sw-select"), lambda s: tabs(s.b, ecu1="green", ecu2="blue")),
     ],
     "cruise": [
+        (("flip", "sw-ign1"), lambda s: rpm_is(s.b, 2400) + tabs(s.b, ecu1="red") + firing(s.a, s.b, (False, True))),
+        (("flip", "sw-ign1"), lambda s: tabs(s.b, ecu1="blue")),
         (("knob", -5), lambda s: trim_is(s.b, -5) + afr_in(s.r0, 10.9, 11.3, "AFR before") + afr_in(s.b, 11.5, 11.9)),
         (("knob", 5), lambda s: trim_is(s.b, 0) + afr_in(s.b, 10.9, 11.3)),
         (("press", 3, 1), lambda s: screen_is(s.scr, kind="gauges", ecu=1, page=2)),
@@ -231,7 +253,8 @@ PILOT = {
         (("press", 3, 1), lambda s: screen_is(s.scr, **GAUGES)),
         (("press", 2, 1), lambda s: screen_is(s.scr, kind="menu", title="tuning", list=True) + rpm_is(s.b, 2700)),
         (("press", 3, 1), lambda s: screen_is(s.scr, **GAUGES)),
-        (("throttle", "thr-cruise"), lambda s: rpm_is(s.b, 2400) + map_near(s.b, 0, 24.0, 0.3)),
+        (("lever", "throttle-cruise"), lambda s: map_near(s.b, 0, 24.0, 0.3) + rpm_in(s.b, 2500, 2600)),
+        (("lever", "prop-cruise"), lambda s: rpm_is(s.b, 2400)),
     ],
     "ecu-silent": [
         (None, lambda s: tabs(s.b, ecu1="red") + firing(s.a, s.b, (True, True)) + lamps(s.c, (True, True))),
@@ -246,14 +269,16 @@ PILOT = {
     "ecu-select": [
         (None, lambda s: tabs(s.b, ecu1="green", ecu2="blue") + firing(s.a, s.b, (True, True))),
         (("flip", "sw-ign2"), lambda s: tabs(s.b, ecu2="red") + firing(s.a, s.b, (True, False)) +
-         lamps(s.c, (True, False))),
+         lamps(s.c, (True, False)) + rpm_is(s.b, 2400)),
         (("flip", "sw-ign2"), lambda s: tabs(s.b, ecu2="blue")),
         (("flip", "sw-select"), lambda s: tabs(s.b, ecu1="blue", ecu2="green")),
     ],
     "rpm-limit": [
-        (None, lambda s: lamps(s.c, (True, True))),
-        (("act",), lambda s: rpm_is(s.b, 3000) + firing(s.a, s.b, (False, False)) + lamps(s.c, (False, False))),
-        (("throttle", "thr-runup"), lambda s: rpm_is(s.b, 1800) + lamps(s.c, (True, True))),
+        (None, lambda s: surging(s.samples)),
+        (("lever", "throttle-runup"), lambda s: rpm_in(s.b, 1950, 2100) + lamps(s.c, (True, True))),
+        (("act",), lambda s: [(s.c["stop"] == "correct" and s.c["governor"] == "working",
+                               f"low-pitch stop {s.c['stop']}, governor {s.c['governor']}")] + rpm_is(s.b, 1800)),
+        (("lever", "throttle-full"), lambda s: rpm_is(s.b, 2700) + lamps(s.c, (True, True))),
     ],
     "trim-lop": [
         (None, lambda s: trim_is(s.b, -28) + afr_in(s.b, 15.0, 16.0)),
@@ -261,17 +286,35 @@ PILOT = {
     ],
 }
 
-# The cockpit page's switches and throttle once a scenario is set up.
+# The cockpit page's switches and levers (throttle %, prop %) once a scenario is set up; cruise: the prop at 2400 RPM,
+# the throttle at 24 inHg.
 SWITCHES = {"ign1": "true", "ign2": "true", "pump1": "true", "pump2": "false", "select": "1"}
-THROTTLE = {"runup": 30, "takeoff": 100}
+LEVERS = {"first-start": (0, 100), "runup": (25, 100), "takeoff": (100, 100), "rpm-limit": (100, 100)}
+CRUISE_LEVERS = (54.9, 57.1)
 
 
 def switches_show(sid: str, c: dict, r: dict) -> list[tuple[bool, str]]:
     want = dict(SWITCHES, select="2" if sid == "ecu-select" else "1")
     got = {k: c[k] for k in want}
-    thr = THROTTLE.get(sid, 55)
-    return [(got == want, f"switches {got} (want {want})"), (c["throttle"] == thr, f"throttle {c['throttle']} (want {thr})"),
-            (near(int(c["rpm"]), r["rpm"][0], 20), f"RPM readout {c['rpm']} (link {r['rpm']})")]
+    thr, prop = LEVERS.get(sid, CRUISE_LEVERS)
+    out = [(got == want, f"switches {got} (want {want})"),
+           (near(c["throttle"], thr, 0.6) and near(c["prop"], prop, 0.6),
+            f"throttle {c['throttle']} %, prop {c['prop']} % (want {thr}, {prop})")]
+    if sid != "rpm-limit":
+        out.append((near(int(c["rpm"]), r["rpm"][0], 20), f"RPM readout {c['rpm']} (link {r['rpm']})"))
+    return out
+
+
+# The engine model's RPM and the Spark lights, every 0.1 s for n samples.
+def samples(pg, n: int) -> list:
+    return [pg.evaluate("runBench(0.1), [Math.round(eng.rpm), [1, 2].map((k) => "
+                        "document.getElementById('lamp-' + k).classList.contains('on'))]") for _ in range(n)]
+
+
+# A scenario's state on the cockpit page where its engine model makes it differ from the bench page.
+EXPECT_COCKPIT = {
+    "rpm-limit": lambda pg, a, b: surging(samples(pg, 20)),
+}
 
 
 class Step:
@@ -290,20 +333,20 @@ def do_step(pg, action, readout) -> Step:
     elif action[0] == "press":
         for _ in range(action[2]):
             pg.click(f"#cc-btn-{action[1]}")
-            pg.evaluate("M._s32_wasm_step_quanta(15000)")
+            pg.evaluate("runBench(1.5)")
     elif action[0] == "knob":
         pg.focus("#cc-knob")
         for _ in range(abs(action[1])):
             pg.keyboard.press("ArrowRight" if action[1] > 0 else "ArrowLeft")
         settle = abs(action[1]) * 0.135 + 2.0
-    elif action[0] == "throttle":
+    elif action[0] == "lever":
         pg.click("#" + action[1])
     elif action[0] == "act":
         pg.click("#step-act")
         pg.wait_for_function("!scenarios.busy()", timeout=120_000)
-    pg.evaluate(f"M._s32_wasm_step_quanta({int(settle * 10000)}); refresh()")
+    pg.evaluate(f"runBench({settle})")
     s.a = readout()
-    pg.evaluate("M._s32_wasm_step_quanta(10000); refresh(); renderLcdFrame(M._s32_wasm_render_rgba())")
+    s.samples = samples(pg, 15)
     s.b = readout()
     s.scr = pg.evaluate(SCREEN_JS)
     s.c = pg.evaluate(COCKPIT_JS)
@@ -396,12 +439,13 @@ def cockpit_page(open_page, check, only, shots) -> None:
         state = pg.evaluate("window.S32_SCENARIO")
         readout = functools.partial(pg.evaluate, READOUT_JS)
         a = readout()
-        pg.evaluate("M._s32_wasm_step_quanta(10000); refresh(); renderLcdFrame(M._s32_wasm_render_rgba())")
+        pg.evaluate("runBench(1)")
         r = readout()
         c = pg.evaluate(COCKPIT_JS)
         print(f"{name}: {r}", flush=True)
+        expect = EXPECT_COCKPIT[sid](pg, a, r) if sid in EXPECT_COCKPIT else EXPECT[sid](a, r)
         check(name, [(state.get("state") == "done", f"setup {state}"), (a["speed"] == 0, "paused after setup"),
-                     (c["start"], "Start shown while paused")] + EXPECT[sid](a, r) + switches_show(sid, c, r))
+                     (c["start"], "Start shown while paused")] + expect + switches_show(sid, c, r))
         pilot = pg.evaluate(f"SCENARIOS.find((s) => s.id === {sid!r}).pilot")
         check(name, [(len(pilot) == len(PILOT[sid]), f"{len(pilot)} pilot steps, {len(PILOT[sid])} checked here")])
         pg.click("#scn-start")
@@ -450,7 +494,7 @@ def cockpit_page(open_page, check, only, shots) -> None:
         pg.close()
 
     # Desktop and phone, light and dark: no sideways scrolling, and the screenshots.
-    views = [(sid, "desktop", 1440, "light") for sid in ("runup", "ecu-silent", "ecu-select", "trim-lop")]
+    views = [(sid, "desktop", 1440, "light") for sid in ("runup", "ecu-silent", "ecu-select", "trim-lop", "rpm-limit")]
     views += [(sid, "phone", 390, "light") for sid in ("runup", "ecu-silent", "ecu-select", "trim-lop")]
     views += [("runup", "desktop", 1440, "dark"), ("runup", "phone", 390, "dark")]
     for sid, kind, width, scheme in views if shots else [("runup", "phone", 390, "dark")]:
