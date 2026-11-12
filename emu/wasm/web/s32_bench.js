@@ -12,173 +12,132 @@
  *   ["trim", pct]                       turn the knob until both ECUs report that fuel trim
  *   ["run", secs]                       run the bench for that long
  *   ["power-cycle"]                     turn both ECUs and the Controller off and on, configuration kept
+ *   ["ecu-setting", n, "text"]          write ECU setting n (1..28) into both ECUs' configuration chips, as the
+ *                                       documented layout holds it (model/s32_fram.ksy); the ECUs read it at their next
+ *                                       power-up. The next scenario puts the old value back.
  * "blank": the configuration chips are erased before the power-up instead of kept. After the steps the bench pauses,
  * unless the link says autostart=1 or the visitor picked the scenario from the list.
  *
  * For the cockpit page each scenario also has:
  *   quadrant  where the cockpit page sets its throttle and prop levers when a step sets the engine ("preset", "rpm",
  *             or the RPM, MAP and throttle sliders): throttle and prop in % of lever travel, or rpm (the prop lever's
- *             governed RPM) and map (the throttle that gives this MAP at that RPM); stop ("correct" or "fine") and
- *             governor ("working" or "failed") for the propeller's bench settings. The cockpit page's engine model
- *             (cockpit.html, ENGINE) then sets RPM and MAP from the levers and the sparks.
- *   shows     what the scenario shows, in two lines at most
+ *             governed RPM) and map (the throttle that gives this MAP at that RPM); stop ("correct" or "fine"), the
+ *             propeller's low-pitch stop. The cockpit page's engine model (cockpit.html, ENGINE) then sets RPM and MAP
+ *             from the levers and the sparks.
+ *   shows     what the scenario shows, for the pilot guide (not shown on the pages)
  *   guide     a link to the pilot guide's page on it ("" for none yet)
- *   pilot     the steps a pilot follows, in order: say (what to do), watch (what to look for) and, for a step the pilot
- *             cannot do from the cockpit, act (the label of the button that does it) and do (the steps it runs).
+ *   pilot     checklist lines for the pilot: say (the item), watch (what follows, a few words) and, for an item the
+ *             pilot cannot do from the cockpit, act (the label of the button that does it) and do (the steps it runs).
  * Every "watch" line is what the cockpit page shows with the default firmware; scripts/bench_scenarios.py checks each
  * one. */
+const CRUISE = { rpm: 2400, map: 24.0 };
 const SCENARIOS = [
   { id: "first-start", title: "First start", blank: true,
     description: "Blank configuration chips, first power-up, engine stopped.",
     steps: [["run", 1]],
-    shows: "The first power-up of a new system. The ECUs store their default settings and do not fire until the next power-up.",
+    shows: "First power-up of a new system: the ECUs store their default settings and fire from the next power-up.",
     guide: "",
     pilot: [
-      { say: "Look at the tabs along the top of the screen.",
-        watch: "ECU1 and ECU2 are red, and both Spark lights are off. The engine is stopped." },
-      { say: "Press Up.",
-        watch: "The Main Menu opens. With the engine stopped, it lists its settings." },
-      { say: "Press Back.",
-        watch: "The gauges come back." },
-      { say: "Cycle the power to both ECUs.", act: "Cycle power", do: [["power-cycle"]],
-        watch: "ECU1 turns blue and ECU2 green. Blue marks the ECU that fuels the engine." },
+      { say: "Look at the tabs", watch: "ECU1 and ECU2 red." },
+      { say: "Press MENU", watch: "Main Menu." },
+      { say: "Press MONITOR", watch: "Gauges." },
+      { say: "Cycle power", act: "Cycle power", do: [["power-cycle"]], watch: "ECU1 blue, ECU2 green." },
     ] },
   { id: "runup", title: "Run-up",
     description: "1800 RPM, both ECUs firing, ECU 1 selected. Try Ignition Enable, the fuel pumps and ECU Select.",
     steps: [["rpm", 1800], ["set", "sl-map", 20.0], ["set", "sl-tps", 30], ["run", 3]],
     quadrant: { throttle: 25, prop: 100 },
-    shows: "The run-up: prop lever full forward, throttle at Run-up, 1800 RPM. Both ECUs fire, ECU 1 fuels, Fuel Pump 1 is on.",
+    shows: "Run-up at 1800 RPM, prop full forward. Both ECUs fire, ECU 1 fuels, Fuel Pump 1 runs.",
     guide: "",
     pilot: [
-      { say: "Check the levers: prop full forward, throttle at Run-up.",
-        watch: "RPM reads 1800. That is below the governor's 2700, so the throttle sets the RPM." },
-      { say: "Turn Ignition 1 off.",
-        watch: "RPM drops about 100. The ECU1 tab turns red and Spark light 1 goes out." },
-      { say: "Turn Ignition 1 back on.",
-        watch: "RPM comes back to 1800 and ECU1 turns blue again." },
-      { say: "Turn Ignition 2 off.",
-        watch: "RPM drops about 100 again and the ECU2 tab turns red." },
-      { say: "Turn Ignition 2 back on.",
-        watch: "RPM comes back to 1800 and ECU2 turns green again." },
-      { say: "Turn Fuel Pump 2 on.",
-        watch: "The PMP2 tab turns yellow." },
-      { say: "Set ECU Select to 2.",
-        watch: "ECU2 turns blue and ECU1 green: ECU 2 now fuels the engine." },
+      { say: "Ignition 1 OFF", watch: "ECU1 red. RPM drops ~100." },
+      { say: "Ignition 1 ON", watch: "ECU1 blue. RPM 1800." },
+      { say: "Ignition 2 OFF", watch: "ECU2 red. RPM drops ~100." },
+      { say: "Ignition 2 ON", watch: "ECU2 green. RPM 1800." },
+      { say: "Fuel Pump 2", watch: "PMP2 yellow, PMP1 gray." },
+      { say: "ECU Select 2", watch: "ECU2 blue, ECU1 green." },
     ] },
   { id: "cruise", title: "Cruise",
     description: "2400 RPM, 24.0 inHg, fuel trim 0 %.",
     steps: [["preset", "cruise"], ["run", 3]],
-    quadrant: { rpm: 2400, map: 24.0 },
-    shows: "Cruise: prop lever at 2400 RPM, throttle at 24 inHg, fuel trim 0 %.",
+    quadrant: CRUISE,
+    shows: "Cruise at 2400 RPM and 24 inHg, fuel trim 0 %.",
     guide: "",
     pilot: [
-      { say: "Turn Ignition 1 off.",
-        watch: "RPM stays at 2400: the governor holds it. The ECU1 tab turns red." },
-      { say: "Turn Ignition 1 back on.",
-        watch: "ECU1 turns blue again." },
-      { say: "Turn the knob five clicks to the left.",
-        watch: "Fuel Trim reads -5 % and the AFR rises from about 11.1 to 11.7: a leaner mixture." },
-      { say: "Turn the knob five clicks to the right.",
-        watch: "Fuel Trim is back at 0 % and the AFR at about 11.1." },
-      { say: "Press Back.",
-        watch: "The next page shows Eng Temp, Throttle, Int Air Temp, Inj Duty, Battery and Crank Trigger." },
-      { say: "Press Back again.",
-        watch: "The box moves to the ECU2 tab: these are ECU 2's numbers. Its Fuel Flow shows dashes because ECU 2 does not fuel." },
+      { say: "Ignition 1 OFF", watch: "ECU1 red. RPM stays 2400." },
+      { say: "Ignition 1 ON", watch: "ECU1 blue." },
+      { say: "Knob 5 clicks left", watch: "Trim -5%. AFR ~11.7." },
+      { say: "Knob 5 clicks right", watch: "Trim 0%. AFR ~11.1." },
+      { say: "Press MONITOR", watch: "Page 2." },
+      { say: "Press MONITOR", watch: "ECU2 numbers." },
     ] },
   { id: "takeoff", title: "Takeoff",
     description: "2700 RPM, 29.0 inHg, full throttle.",
     steps: [["preset", "takeoff"], ["run", 3]],
     quadrant: { throttle: 100, prop: 100 },
-    shows: "Takeoff: throttle and prop lever full forward. The governor holds 2700 RPM; MAP is 29 inHg.",
+    shows: "Takeoff: throttle and prop full forward, 2700 RPM, 29 inHg.",
     guide: "",
     pilot: [
-      { say: "Read RPM and MAP on the screen.",
-        watch: "RPM reads 2700, held by the governor. MAP climbs to about 29." },
-      { say: "Press Up.",
-        watch: "The Main Menu says its functions are not available while the engine is running." },
-      { say: "Press Back.",
-        watch: "The gauges come back." },
-      { say: "Press Down.",
-        watch: "The Tuning Menu opens, engine running: RPM Fuel Tuning, MAP Fuel Tuning, Injector Trim." },
-      { say: "Press Back.",
-        watch: "The gauges come back." },
-      { say: "Pull the throttle back to Cruise.",
-        watch: "MAP falls to about 24 and RPM to about 2550: with the prop full forward, the throttle sets the RPM." },
-      { say: "Pull the prop lever back to Cruise.",
-        watch: "RPM settles at 2400: the governor holds it there." },
+      { say: "RPM and MAP", watch: "RPM 2700, MAP 29." },
+      { say: "Press MENU", watch: "Menu locked while running." },
+      { say: "Press MONITOR", watch: "Gauges." },
+      { say: "Press TUNE", watch: "Tuning Menu." },
+      { say: "Press MONITOR", watch: "Gauges." },
+      { say: "Throttle back to MAP 24", watch: "RPM ~2550." },
+      { say: "Prop back to 2400 RPM", watch: "RPM 2400." },
     ] },
   { id: "ecu-silent", title: "ECU 1 silent",
     description: "Cruise with ECU 1 powered but its data link silent: red ECU1 tab, dashes for its values.",
     steps: [["preset", "cruise"], ["run", 1], ["set", "sw-e1-lnk", false], ["run", 4]],
-    quadrant: { rpm: 2400, map: 24.0 },
-    shows: "ECU 1 has power and runs, but the Controller hears nothing from it, as with a broken data cable.",
+    quadrant: CRUISE,
+    shows: "ECU 1 runs, but the Controller hears nothing from it, as with a broken data cable.",
     guide: "",
     pilot: [
-      { say: "Look at the ECU1 tab.",
-        watch: "It is red, and RPM, MAP, Fuel Flow and IGN show dashes. Both Spark lights stay on: ECU 1 still fires." },
-      { say: "Set ECU Select to 2.",
-        watch: "ECU2 turns blue: ECU 2 now fuels. ECU1 stays red." },
-      { say: "Press Back twice.",
-        watch: "The box moves to the ECU2 tab and shows ECU 2's RPM, MAP and fuel flow." },
+      { say: "Look at ECU1", watch: "Red. Dashes for its values." },
+      { say: "ECU Select 2", watch: "ECU2 blue." },
+      { say: "Press MONITOR twice", watch: "ECU2 numbers." },
     ] },
   { id: "map-fail", title: "MAP sensor failed",
     description: "Cruise with ECU 1's MAP sensor disconnected. Select ECU 2 to fuel from the other sensor.",
     steps: [["preset", "cruise"], ["run", 1], ["set", "sel-e1-map", "open"], ["run", 3]],
-    quadrant: { rpm: 2400, map: 24.0 },
-    shows: "ECU 1's manifold pressure sensor has failed. ECU 1 fuels from a wrong reading until you select ECU 2.",
+    quadrant: CRUISE,
+    shows: "ECU 1's manifold pressure sensor has failed; ECU 1 fuels from a wrong reading until ECU 2 is selected.",
     guide: "",
     pilot: [
-      { say: "Read MAP and AFR on the screen.",
-        watch: "MAP reads far below the engine's 24 inHg, and AFR reads 20.0, the top of its scale: very lean." },
-      { say: "Set ECU Select to 2.",
-        watch: "ECU2 turns blue and the AFR comes back to about 11: ECU 2 fuels from its own sensor." },
-      { say: "Press Back twice.",
-        watch: "ECU 2's page shows MAP at about 24." },
+      { say: "Read MAP and AFR", watch: "MAP low. AFR 20.0." },
+      { say: "ECU Select 2", watch: "ECU2 blue. AFR ~11." },
+      { say: "Press MONITOR twice", watch: "ECU2 MAP 24." },
     ] },
-  { id: "ecu-select", title: "Fuel from ECU 2",
+  { id: "ecu-select", title: "ECU 2 fuels",
     description: "Cruise with ECU Select on ECU 2: ECU 2 fuels the engine (blue ECU2 tab).",
     steps: [["preset", "cruise"], ["run", 1], ["set", "sel-ecu-select", "2"], ["run", 3]],
-    quadrant: { rpm: 2400, map: 24.0 },
-    shows: "Cruise with ECU Select on 2. ECU 2 fuels the engine; ECU 1 still fires.",
+    quadrant: CRUISE,
+    shows: "Cruise with ECU Select on 2: ECU 2 fuels, ECU 1 still fires.",
     guide: "",
     pilot: [
-      { say: "Look at the tabs along the top of the screen.",
-        watch: "ECU2 is blue: it fuels the engine. ECU1 is green: it runs and fires." },
-      { say: "Turn Ignition 2 off.",
-        watch: "ECU2 turns red and Spark light 2 goes out. ECU 1 keeps firing; RPM stays at 2400." },
-      { say: "Turn Ignition 2 back on.",
-        watch: "ECU2 turns blue again." },
-      { say: "Set ECU Select to 1.",
-        watch: "ECU1 turns blue and ECU2 green: ECU 1 fuels again." },
+      { say: "Look at the tabs", watch: "ECU2 blue, ECU1 green." },
+      { say: "Ignition 2 OFF", watch: "ECU2 red. RPM stays 2400." },
+      { say: "Ignition 2 ON", watch: "ECU2 blue." },
+      { say: "ECU Select 1", watch: "ECU1 blue, ECU2 green." },
     ] },
-  { id: "rpm-limit", title: "Near the RPM limit",
-    description: "2950 RPM. With this configuration the ignition cuts at 3000 RPM: move the RPM slider there.",
-    steps: [["preset", "cruise"], ["rpm", 2950], ["run", 3]],
-    quadrant: { throttle: 100, prop: 100, stop: "fine", governor: "failed" },
-    shows: "The governor has failed and the propeller's low-pitch stop is set too fine. At full throttle the engine runs up to the 3000 RPM limit, where the ECUs cut spark.",
+  { id: "rpm-limit", title: "RPM limit",
+    description: "RPM Limit set to 2750, engine at 2700. Move the RPM slider to 2750: the ignition cuts.",
+    steps: [["ecu-setting", 7, "2750"], ["power-cycle"], ["preset", "cruise"], ["rpm", 2700], ["run", 3]],
+    quadrant: { throttle: 25, prop: 100, stop: "fine" },
+    shows: "RPM limit 2750, fine low-pitch stop. Throttle full, fast: RPM pulses at 2750 until the governor holds 2700.",
     guide: "",
     pilot: [
-      { say: "Watch RPM and the Spark lights.",
-        watch: "RPM runs up to about 3000, the ECUs stop firing, RPM sags, and they fire again: the engine surges at the limit." },
-      { say: "Pull the throttle back to Run-up.",
-        watch: "RPM falls to about 2000 and both Spark lights stay on." },
-      { say: "Have the governor and the low-pitch stop fixed.", act: "Fix the propeller",
-        do: [["set", "prop-stop", "correct"], ["set", "governor", "working"]],
-        watch: "Under Bench, Low-pitch stop reads Correct and Governor reads Working. RPM reads 1800." },
-      { say: "Push the throttle to Full.",
-        watch: "RPM stops at 2700: the governor holds it, and both Spark lights stay on." },
+      { say: "Throttle full, fast", watch: "RPM 2750, pulsing, then 2700." },
     ] },
-  { id: "trim-lop", title: "Leaned with trim",
+  { id: "trim-lop", title: "Lean trim",
     description: "Cruise with the fuel trim turned to -28 %: the bench AFR reads about 15.5.",
     steps: [["preset", "cruise"], ["trim", -28], ["run", 3]],
-    quadrant: { rpm: 2400, map: 24.0 },
-    shows: "Cruise with the fuel trim turned down to -28 %. The mixture is leaned until the AFR reads about 15.5.",
+    quadrant: CRUISE,
+    shows: "Cruise with the fuel trim at -28 %: AFR about 15.5.",
     guide: "",
     pilot: [
-      { say: "Read Fuel Trim and AFR on the screen.",
-        watch: "Fuel Trim reads -28 % and AFR about 15.5." },
-      { say: "Turn the knob to the right until Fuel Trim reads 0 %.",
-        watch: "The AFR falls back to about 11." },
+      { say: "Read Fuel Trim and AFR", watch: "-28%. AFR ~15.5." },
+      { say: "Knob right to 0%", watch: "AFR ~11." },
     ] },
 ];
 
@@ -401,14 +360,38 @@ function s32ScenarioRunner(host) {
     await advance(1.0);
   }
 
+  // ECU settings in the configuration chips (model/s32_fram.ksy): 16-byte NUL-padded text slots from 0x1480, a 16-bit
+  // byte sum of 0x1480..0x187F at 0x1890. undo holds what the last scenario's "ecu-setting" steps replaced.
+  let undo = [];
+  function writeSlot(k, n, bytes) {
+    const M = host.M(), p = M._s32_wasm_get_fram_ptr(k);
+    M.HEAPU8.set(bytes, p + 0x1480 + (n - 1) * 16);
+    let sum = 0;
+    for (let a = 0x1480; a < 0x1880; a++) sum += M.HEAPU8[p + a];
+    M.HEAPU8[p + 0x1890] = sum & 0xff;
+    M.HEAPU8[p + 0x1891] = (sum >> 8) & 0xff;
+  }
+  function ecuSetting(n, text) {
+    const M = host.M();
+    const bytes = Array.from({ length: 16 }, (_, i) => (i < text.length ? text.charCodeAt(i) : 0));
+    for (const k of [1, 2]) {
+      const at = M._s32_wasm_get_fram_ptr(k) + 0x1480 + (n - 1) * 16;
+      if (!undo.some(([kk, m]) => kk === k && m === n)) undo.push([k, n, M.HEAPU8.slice(at, at + 16)]);
+      writeSlot(k, n, bytes);
+    }
+  }
+
   async function resetBench(blank) {
+    if (!blank) for (const [k, n, bytes] of undo.reverse()) writeSlot(k, n, bytes);
+    undo = [];
     host.resetControls(blank);
     if (blank) for (const target of [0, 1, 2]) host.M()._s32_wasm_clear_fram(target);
     await powerUp();
     if (!blank) await setTrim(0);
   }
 
-  const actions = () => ({ ...host.actions, trim: setTrim, run: advance, "power-cycle": powerUp });
+  const actions = () => ({ ...host.actions, trim: setTrim, run: advance, "power-cycle": powerUp,
+                           "ecu-setting": ecuSetting });
 
   async function runSteps(list) {
     const a = actions();

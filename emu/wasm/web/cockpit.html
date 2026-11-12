@@ -23,7 +23,6 @@
     /* The hardware looks the same in both themes. */
     --hw-engrave: #d4d4cf;
     --hw-engrave-2: #9b9b97;
-    --lamp-on: #6ee394;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
@@ -87,7 +86,6 @@
   .step-say { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; }
   .step-watch { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; max-width: 62ch; }
   .step-watch:empty { display: none; }
-  .watch-label { color: var(--muted); font-weight: 600; margin-right: 4px; }
   .step-ctl { display: flex; gap: 8px; align-items: center; padding-top: 20px; flex-wrap: wrap; justify-content: flex-end; }
   .btn {
     border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 8px;
@@ -118,8 +116,8 @@
   .cc {
     position: relative;
     width: 100%;
-    max-width: 590px;
-    aspect-ratio: 1 / 1;
+    max-width: 540px;
+    aspect-ratio: 330 / 371;
     filter: drop-shadow(0 22px 28px var(--shadow)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
     user-select: none;
     -webkit-user-select: none;
@@ -139,49 +137,44 @@
   }
   .cc-over[hidden] { display: none; }
   .cc-over .btn.primary { font-size: 16px; padding: 10px 26px; }
+  .cc-screen { border-radius: 1.6%; }
   .cc-btn {
     position: absolute;
-    border-radius: 5px;
-    border: 1px solid #070708;
-    background: linear-gradient(180deg, #48494e 0%, #2c2d31 55%, #232427 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 2px 0 #0b0b0c, 0 3px 5px rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    border: 1px solid #050505;
+    background:
+      radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 38%),
+      radial-gradient(circle at 50% 50%, #2c2d31 0%, #1b1c1f 62%, #0f1012 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), inset 0 -2px 3px rgba(0, 0, 0, 0.6), 0 2px 3px rgba(0, 0, 0, 0.7);
     cursor: pointer;
     padding: 0;
     touch-action: none;
   }
-  .cc-btn:hover { background: linear-gradient(180deg, #505157 0%, #313236 55%, #26272a 100%); }
+  .cc-btn:hover { filter: brightness(1.15); }
   .cc-btn.down {
-    transform: translateY(1.5px);
-    background: linear-gradient(180deg, #2a2b2f 0%, #232427 100%);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 0.5px 0 #0b0b0c;
+    transform: scale(0.95);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 1px rgba(0, 0, 0, 0.6);
   }
-  .cc-knob { position: absolute; border-radius: 50%; touch-action: none; }
+  .cc-knob { position: absolute; border-radius: 50%; touch-action: none; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.6)); }
   .cc-knurl {
-    position: absolute; inset: 0; border-radius: 50%; cursor: grab;
+    position: absolute; inset: 0; cursor: grab;
     background:
-      radial-gradient(circle at 50% 50%, transparent 0 60%, rgba(0, 0, 0, 0.35) 72%, transparent 73%),
-      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.22), transparent 60%),
-      repeating-conic-gradient(from 0deg, #34353a 0deg 5deg, #17181a 5deg 10deg);
-    border: 1px solid #060607;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.35);
+      repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.035) 0deg 20deg, rgba(0, 0, 0, 0.1) 20deg 40deg),
+      radial-gradient(circle at 50% 50%, #303135 0%, #26272a 60%, #161719 100%);
   }
   .cc-knurl:active { cursor: grabbing; }
-  .cc-mark {
-    position: absolute; left: 50%; top: 4%; width: 6%; height: 12%; margin-left: -3%;
-    border-radius: 2px; background: #e9e9e4; opacity: 0.85;
+  .cc-shine {
+    position: absolute; inset: 10%; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 55%);
   }
   .cc-push {
-    position: absolute; left: 21%; top: 21%; width: 58%; height: 58%; border-radius: 50%; padding: 0; cursor: pointer;
-    border: 1px solid #060607;
-    background: radial-gradient(circle at 38% 32%, #5a5b61 0%, #2c2d31 45%, #18191b 100%);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 1px 3px rgba(0, 0, 0, 0.6);
+    position: absolute; left: 26%; top: 26%; width: 48%; height: 48%; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.35);
+    background: radial-gradient(circle at 40% 35%, #36373b 0%, #27282b 60%, #1f2023 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
   }
-  .cc-push.down { transform: scale(0.96); background: radial-gradient(circle at 40% 36%, #45464b 0%, #222326 60%, #151618 100%); }
-  .cc-help { margin: 0; max-width: 520px; font-size: 13px; color: var(--muted); text-align: center; }
-  .linkish {
-    background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font-size: 13px;
-    text-decoration: underline; text-underline-offset: 2px;
-  }
+  .cc-push.down { transform: scale(0.95); background: radial-gradient(circle at 40% 36%, #2f3034 0%, #1c1d20 60%, #121315 100%); }
+  .chord { font-size: 12px; letter-spacing: 0.06em; padding: 5px 12px; color: var(--muted); }
 
   /* The switch panel */
   .side { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
@@ -226,21 +219,16 @@
   .pow {
     display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: start;
     margin-top: 24px; padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.07);
-    --lev-h: 156px; --slot-w: 44px; --mark-w: 58px; --knob-h: 24px;
+    --lev-h: 156px; --slot-w: 46px; --knob-h: 24px;
   }
   .quad {
-    display: flex; gap: 18px; padding: 14px 12px 12px; border-radius: 10px; background: #18191b;
+    display: flex; gap: 34px; padding: 14px 22px 12px; border-radius: 10px; background: #18191b;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.05);
   }
   .lev { display: grid; grid-template-rows: var(--lev-h) auto; column-gap: 4px; row-gap: 10px; }
-  .lev.throttle { grid-template-columns: var(--mark-w) var(--slot-w); }
-  .lev.prop { grid-template-columns: var(--slot-w) var(--mark-w); }
-  .lev-name { grid-row: 2; grid-column: 1 / -1; }
-  .lev.throttle .lev-name { text-align: right; }
-  .lev.prop .lev-name { text-align: left; }
+  .lev { grid-template-columns: var(--slot-w); justify-items: center; }
+  .lev-name { grid-row: 2; text-align: center; white-space: nowrap; }
   .lev-slot { position: relative; height: var(--lev-h); width: var(--slot-w); cursor: ns-resize; touch-action: none; border-radius: 8px; }
-  .lev.throttle .lev-slot { grid-column: 2; grid-row: 1; }
-  .lev.throttle .lev-marks { grid-column: 1; grid-row: 1; }
   .lev-slot::before {
     content: ""; position: absolute; left: 50%; top: 4px; bottom: 4px; width: 10px; margin-left: -5px; border-radius: 5px;
     background: #0a0b0c; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.95), 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -256,54 +244,28 @@
       repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.13) 0 2px, transparent 2px 5px),
       linear-gradient(180deg, #4b7fe6 0%, #2353b8 55%, #173c88 100%);
   }
-  .lev-marks { position: relative; height: var(--lev-h); }
-  .lev-mark {
-    position: absolute; top: calc(var(--knob-h) / 2 + (1 - var(--v)) * (var(--lev-h) - var(--knob-h)));
-    transform: translateY(-50%); background: none; border: none; padding: 2px 0; cursor: pointer; white-space: nowrap;
-    font-size: 9.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hw-engrave-2);
-    display: flex; align-items: center; gap: 4px;
-  }
-  .lev-mark::after, .lev.prop .lev-mark::before { content: ""; width: 5px; height: 1px; background: var(--hw-engrave-2); }
-  .lev.prop .lev-mark::after { display: none; }
-  .lev.throttle .lev-mark { right: 0; }
-  .lev.prop .lev-mark { left: 0; }
-  .lev-mark:hover { color: var(--hw-engrave); }
   .lev-slot:focus-visible { outline-offset: 2px; }
   .eng { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
   .ro-label { font-size: 10px; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hw-engrave-2); }
   .ro-val { font-size: 30px; line-height: 1.1; font-weight: 500; color: #f4f4f0; font-variant-numeric: tabular-nums; }
   .ro-val small { font-size: 12px; color: var(--hw-engrave-2); margin-left: 4px; font-weight: 500; }
-  .spark { padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.07); cursor: help; }
-  .spark-note { font-size: 10.5px; line-height: 1.35; color: var(--hw-engrave-2); margin-top: 6px; }
-  .lamps { display: flex; gap: 12px; align-items: center; margin-top: 6px; font-size: 12px; font-weight: 650; }
-  .lamp-wrap { display: inline-flex; align-items: center; gap: 5px; }
-  .lamp {
-    width: 11px; height: 11px; border-radius: 50%; background: #2e3033; display: inline-block;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-  }
-  .lamp.on { background: var(--lamp-on); box-shadow: 0 0 9px rgba(110, 227, 148, 0.75), inset 0 -1px 1px rgba(0, 0, 0, 0.25); }
   @media (max-width: 420px) { .plate { padding: 24px 16px 20px; } }
   /* A narrow panel (a phone, or the embed beside the Controller): smaller switches. */
   @container (max-width: 340px) {
     .sw-groups { --tog-w: 40px; --tog-h: 66px; gap: 6px; }
     .legend { width: 20px; font-size: 9px; }
     .grp .engr { font-size: 9.5px; letter-spacing: 0.08em; }
-    .pow { --slot-w: 40px; --mark-w: 46px; --lev-h: 140px; gap: 14px; }
-    .quad { gap: 10px; padding: 12px 8px 10px; }
-    .lev-mark { font-size: 9px; letter-spacing: 0.04em; }
+    .pow { --slot-w: 42px; --lev-h: 140px; gap: 14px; }
+    .quad { gap: 30px; padding: 12px 18px 10px; }
+    .lev-name { font-size: 9.5px; letter-spacing: 0.08em; }
     .ro-val { font-size: 24px; }
   }
   /* Narrower still (the embed beside the Controller): the engine readouts under the levers. */
   @container (max-width: 290px) {
     .pow { grid-template-columns: minmax(0, 1fr); justify-items: center; }
     .eng { flex-direction: row; flex-wrap: wrap; justify-content: space-between; width: 100%; gap: 10px 16px; }
-    .spark { border-top: none; padding-top: 0; }
-    .spark-note { display: none; }
   }
 
-  .about p { margin: 0; color: var(--ink-2); max-width: 46ch; }
-  .about a { display: inline-block; margin-top: 10px; font-size: 14px; }
-  .about a[hidden] { display: none; }
 
   /* The bench, folded */
   .bench { border-top: 1px solid var(--line); padding: 16px 0; }
@@ -330,13 +292,11 @@
 
   /* ?embed=1 */
   html.embed body { background: transparent; }
-  html.embed .top, html.embed .scn, html.embed .about, html.embed .bench, html.embed .notice .full,
-  html.embed .cc-help { display: none; }
+  html.embed .top, html.embed .scn, html.embed .bench { display: none; }
   html.embed .wrap { padding: 0 12px; }
   html.embed .cockpit { padding: 12px 0 8px; gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
   @media (max-width: 680px) { html.embed .cockpit { grid-template-columns: minmax(0, 1fr); } }
   html.embed .notice { padding: 0 0 10px; font-size: 11px; text-align: center; }
-  html:not(.embed) .notice .short { display: none; }
 </style>
 </head>
 <body>
@@ -358,8 +318,8 @@
     </div>
     <div aria-live="polite">
       <div class="step-n" id="step-n">&nbsp;</div>
-      <p class="step-say" id="step-say">Loading the emulator…</p>
-      <p class="step-watch"><span class="watch-label">Watch:</span><span id="step-watch"></span></p>
+      <p class="step-say" id="step-say">Loading…</p>
+      <p class="step-watch" id="step-watch"></p>
     </div>
     <div class="step-ctl">
       <button type="button" class="btn" id="step-act" hidden></button>
@@ -382,8 +342,7 @@
           </div>
         </div>
       </div>
-      <p class="cc-help">Drag, scroll or click the knob to turn it; press its center to push it. Buttons work with a tap
-        or a press and hold. <button type="button" class="linkish" id="cc-chord">Press Down and Back together</button></p>
+      <button type="button" class="btn chord" id="cc-chord" title="Press TUNE and MONITOR together">TUNE + MONITOR</button>
     </div>
 
     <div class="side">
@@ -400,9 +359,8 @@
           <div class="grp">
             <span class="engr">Fuel Pump</span>
             <div class="grp-body">
-              <div class="legend" aria-hidden="true"><span>On</span><span>Off</span></div>
-              <button type="button" class="tog" id="sw-pump1" role="switch" aria-label="Fuel Pump 1" data-ctl="sw-pump1"></button>
-              <button type="button" class="tog" id="sw-pump2" role="switch" aria-label="Fuel Pump 2" data-ctl="sw-pump2"></button>
+              <div class="legend" aria-hidden="true"><span>1</span><span>2</span></div>
+              <button type="button" class="tog" id="sw-pump" aria-label="Fuel Pump" data-value="1"></button>
             </div>
           </div>
           <div class="grp">
@@ -417,7 +375,6 @@
         <div class="pow">
           <div class="quad">
             <div class="lev throttle">
-              <div class="lev-marks" id="throttle-marks"></div>
               <div class="lev-slot" id="throttle" role="slider" tabindex="0" aria-label="Throttle" aria-valuemin="0"
                    aria-valuemax="100" aria-valuenow="0"><span class="lev-knob"></span></div>
               <span class="engr lev-name">Throttle</span>
@@ -425,57 +382,33 @@
             <div class="lev prop">
               <div class="lev-slot" id="prop" role="slider" tabindex="0" aria-label="Prop" aria-valuemin="0"
                    aria-valuemax="100" aria-valuenow="100"><span class="lev-knob"></span></div>
-              <div class="lev-marks" id="prop-marks"></div>
               <span class="engr lev-name">Prop</span>
             </div>
           </div>
           <div class="eng">
             <div><div class="ro-label">RPM</div><div class="ro-val" id="ro-rpm">0</div></div>
             <div><div class="ro-label">MAP</div><div class="ro-val"><span id="ro-map">29.9</span><small>inHg</small></div></div>
-            <div class="spark" title="Spark (emulator): lit while that ECU fires its coils. The emulator shows it; it is not a cockpit item.">
-              <div class="ro-label">Spark (emulator)</div>
-              <div class="lamps">
-                <span class="lamp-wrap"><span class="lamp" id="lamp-1"></span>1</span>
-                <span class="lamp-wrap"><span class="lamp" id="lamp-2"></span>2</span>
-              </div>
-              <div class="spark-note">Lit while that ECU fires. Not a cockpit item.</div>
-            </div>
           </div>
         </div>
       </div>
 
-      <div class="about">
-        <span class="eyebrow">What this shows</span>
-        <p id="scn-shows"></p>
-        <a id="scn-guide" href="#" hidden>Read more in the guide</a>
-      </div>
     </div>
   </main>
 
   <details class="bench" id="bench">
     <summary>Bench</summary>
-    <p>The bench has every engine and sensor control, the fault switches, the fuel and ignition maps, and a place to
-      load your own firmware files.</p>
     <div class="bench-set">
       <label>Low-pitch stop
         <select id="set-prop-stop">
-          <option value="correct">Correct: 2700 RPM at full throttle on the stop</option>
-          <option value="fine">Too fine: 3150 RPM at full throttle on the stop</option>
-        </select></label>
-      <label>Governor
-        <select id="set-governor">
-          <option value="working">Working</option>
-          <option value="failed">Failed: the blades stay on the low-pitch stop</option>
+          <option value="correct">Correct</option>
+          <option value="fine">Too fine</option>
         </select></label>
     </div>
-    <a id="bench-link" href="index.html">Open the bench at this scenario</a>
+    <a id="bench-link" href="index.html">Open the bench</a>
   </details>
 
   <footer class="notice">
-    <p class="full"><strong>Not for flight.</strong> <span id="fw-label">The emulator runs the Controller and both ECUs
-      in your browser.</span></p>
-    <p class="full">This emulator is not affiliated with, endorsed by, or sponsored by Protek Performance / FlyEFII.</p>
-    <p class="short">Emulator. Not for flight. Not affiliated with Protek Performance / FlyEFII.</p>
+    <p><span id="fw-label"></span>Not affiliated with, endorsed by, or sponsored by Protek Performance / FlyEFII.</p>
   </footer>
 </div>
 
@@ -508,22 +441,26 @@ const QUERY = new URLSearchParams(location.search);
 const EMBED = QUERY.get("embed") === "1";
 const $ = (id) => document.getElementById(id);
 
-/* The Controller's face, in hundredths of an inch: 3.30 in square, for a 3 1/8 in round instrument hole. x / y are the
- * centers of the controls. The three buttons sit under the places where the firmware writes their labels at the
- * bottom of the screen (Up, Down, Back), the knob under "Push to Select". Change these to match a photo of the real
- * bezel; nothing else needs to move. */
+/* The Controller's face, drawn from a photo of the real unit, in units of 1/330 of the face's width (the face is a
+ * little taller than wide). x / y are the centers of the round controls; the screen, card slot and indicator are
+ * placed by their top left corner. The buttons are the real ones, labeled below: MENU, TUNE and MONITOR, each driving
+ * the same Controller input as the bench page's button of that name (n: 1, 2, 3; the knob's push is 0). The firmware's
+ * own soft labels (Up, Down, Back, Push to Select) appear only on the screen. To adjust the drawing, change these. */
 const FACE = {
-  size: 330,
-  corner: 14,
-  screws: { inset: 17, r: 6.5 },
-  screen: { x: 37, y: 30, w: 256, h: 192 },
-  knob: { x: 86, y: 270, d: 66, label: "Push to Select", labelY: 318 },
+  w: 330,
+  h: 371,
+  corner: 7,
+  screen: { x: 23, y: 35, w: 284, h: 213, corner: 10, inset: 0.035 },
+  knob: { x: 57, y: 318, d: 82, flutes: 9 },
   buttons: [
-    { n: 1, label: "Up", x: 145, y: 268, w: 42, h: 24, hint: "Up. From the gauges: Main Menu." },
-    { n: 2, label: "Down", x: 207, y: 268, w: 42, h: 24, hint: "Down. From the gauges: Tuning Menu." },
-    { n: 3, label: "Back", x: 264, y: 268, w: 42, h: 24, hint: "Back. From the gauges: the next page." },
+    { n: 1, label: "MENU", x: 139, y: 324, d: 38 },
+    { n: 2, label: "TUNE", x: 204, y: 324, d: 38 },
+    { n: 3, label: "MONITOR", x: 269, y: 324, d: 38 },
   ],
-  buttonLabelY: 298,
+  buttonLabelY: 364,
+  buttonLabelSize: 12.5,
+  slot: { x: 123, y: 282, w: 101, h: 13 },
+  indicator: { x: 268, y: 284, d: 8 },
   knobDegPerClick: 18,
 };
 
@@ -532,12 +469,14 @@ const FACE = {
  *   power      the RPM the engine reaches with the blades on a correctly set low-pitch stop, both ECUs firing,
  *              against the throttle (0..1); a stop set elsewhere scales the part above idle (stops: the RPM at full
  *              throttle on the stop)
- *   governor   the prop lever (0..1) sets the governed RPM, low to high; a working governor holds RPM at that value
- *              whenever the power would turn the engine faster; below it the throttle sets the RPM
+ *   governor   the prop lever (0..1) sets the governed RPM, low to high. When the engine could turn faster, the
+ *              governor coarsens the blades until it holds that RPM; the blade angle follows with a first-order lag
+ *              (tau.governor), so a fast throttle push overshoots first; while no ECU fires the blades stay where they
+ *              are. Below that, the blades sit on the stop and the throttle sets the RPM.
  *   oneEcu     the share of power with only one ECU firing; with none the engine winds down and stops below stopBelow
  *   closedMap  MAP with the throttle closed, against RPM (ambient when stopped); opening: the share of the way from
  *              there to fullMap, against the throttle. So MAP rises with throttle and falls a little as RPM rises.
- *   tau        how fast RPM follows: up, down, and winding down with no spark (seconds)
+ *   tau        how fast RPM follows: up, down, winding down with no spark; and the governor's lag (seconds)
  *   startHold  after a scenario starts the engine, RPM is held this long while the ECUs pick up the crank signal
  * An ECU counts as firing while its first coil fires at least half as often as the RPM calls for (once per
  * revolution), measured over the last `window` seconds. Mixture, fuel and temperatures do not change the RPM. */
@@ -549,7 +488,7 @@ const ENGINE = {
   closedMap: [[0, 29.9], [750, 12.0], [2700, 10.0]],
   opening: [[0, 0], [0.25, 0.45], [0.5, 0.7], [0.65, 0.8], [1, 1]],
   fullMap: 29.0,
-  tau: { up: 0.4, down: 0.6, nospark: 1.5 },
+  tau: { up: 0.4, down: 0.6, nospark: 1.5, governor: 0.8 },
   stopBelow: 200,
   startHold: 1.0,
   window: 0.3,
@@ -639,8 +578,12 @@ function setControl(id, value) {
     bench["sw-e2-inj"] = value === "2" || value === "both";
     applyEcu(0);
     applyEcu(1);
-  } else if (id === "prop-stop" || id === "governor") {   // the propeller's bench settings
-    eng[id === "prop-stop" ? "stop" : "governor"] = value;
+  } else if (id === "prop-stop") {     // the propeller's low-pitch stop (a bench setting)
+    eng.stop = value;
+  } else if (id === "sel-pump") {      // the pump switch runs one pump: 1 or 2
+    bench["sw-pump1"] = value === "1";
+    bench["sw-pump2"] = value === "2";
+    applyPumps();
   } else if (!(id in BENCH_DEFAULTS)) {
     throw new Error(`no control ${id} on the cockpit page`);
   } else {
@@ -658,7 +601,7 @@ function setControl(id, value) {
 
 /* ---- The engine model (ENGINE) ---- */
 
-const eng = { throttle: 0, prop: 1, stop: "correct", governor: "working", rpm: 0, hold: -1, firing: [false, false],
+const eng = { throttle: 0, prop: 1, stop: "correct", pitch: 0, rpm: 0, hold: -1, firing: [false, false],
               hist: [], last: null };
 
 function interp(table, x) {
@@ -682,11 +625,20 @@ function manifold(throttle, rpm) {
   return closed + (ENGINE.fullMap - closed) * interp(ENGINE.opening, throttle);
 }
 
-// The RPM the engine settles at with this share of its power.
+// The blade angle (0 = on the low-pitch stop) the governor wants: the one that turns the engine at the governed RPM
+// with this share of its power. And the RPM the engine settles at with the blades there.
+function engineFree(share) {
+  return share > 0 ? powerRpm(eng.throttle) * Math.cbrt(share) : 0;
+}
+
+function governorPitch(free) {
+  const gov = governedRpm(eng.prop);
+  return free > gov ? 1 - gov / free : 0;
+}
+
 function engineTarget(share) {
-  let rpm = share > 0 ? powerRpm(eng.throttle) * Math.cbrt(share) : 0;
-  if (eng.governor === "working") rpm = Math.min(rpm, governedRpm(eng.prop));
-  return rpm;
+  const free = engineFree(share);
+  return free * (1 - governorPitch(free));
 }
 
 // The throttle (0..1) that gives this MAP at this RPM.
@@ -722,10 +674,10 @@ function engineStop() {
 function engineQuadrant(q) {
   if (!q) return;
   eng.stop = q.stop || "correct";
-  eng.governor = q.governor || "working";
   eng.prop = q.rpm !== undefined ? propFor(q.rpm) : (q.prop ?? 100) / 100;
   eng.throttle = q.map !== undefined ? throttleFor(q.map, governedRpm(eng.prop)) : (q.throttle ?? 0) / 100;
-  eng.rpm = Math.min(engineTarget(1), 2900);
+  eng.pitch = governorPitch(engineFree(1));
+  eng.rpm = engineTarget(1);
   eng.hold = M && booted ? telemetry().time_s + ENGINE.startHold : -1;
   eng.firing = [true, true];
   eng.hist = [];
@@ -754,7 +706,9 @@ function engineUpdate(t) {
   if (eng.rpm <= 0 || now < eng.hold) return;
   const n = eng.firing.filter(Boolean).length;
   const share = n === 2 ? 1 : n === 1 ? ENGINE.oneEcu : 0;
-  const target = engineTarget(share);
+  const free = engineFree(share);
+  if (share > 0) eng.pitch += (governorPitch(free) - eng.pitch) * Math.min(1, dt / ENGINE.tau.governor);
+  const target = free * (1 - eng.pitch);
   const tau = share === 0 ? ENGINE.tau.nospark : target > eng.rpm ? ENGINE.tau.up : ENGINE.tau.down;
   eng.rpm += (target - eng.rpm) * Math.min(1, dt / tau);
   if (share === 0 && eng.rpm < ENGINE.stopBelow) eng.rpm = 0;
@@ -800,13 +754,13 @@ function showControls() {
   }
   $("ro-map").textContent = Number(bench["sl-map"]).toFixed(1);
   $("set-prop-stop").value = eng.stop;
-  $("set-governor").value = eng.governor;
+  $("sw-pump").dataset.value = bench["sw-pump2"] && !bench["sw-pump1"] ? "2" : "1";
+  $("sw-pump").setAttribute("aria-label", `Fuel Pump: ${$("sw-pump").dataset.value}`);
 }
 
-// The Spark (emulator) lights: an ECU's light is on while the engine model counts it as firing.
+// The engine readouts.
 function showReadouts(t) {
   $("ro-rpm").textContent = String(Math.round(t.rpm));
-  for (const k of [0, 1]) $("lamp-" + (k + 1)).classList.toggle("on", eng.firing[k]);
 }
 
 function refresh() {
@@ -824,44 +778,48 @@ function svgEl(name, attrs, parent) {
 }
 
 function place(el, x, y, w, h) {
-  const s = FACE.size;
-  Object.assign(el.style, { left: `${(x - w / 2) / s * 100}%`, top: `${(y - h / 2) / s * 100}%`,
-                            width: `${w / s * 100}%`, height: `${h / s * 100}%` });
+  Object.assign(el.style, { left: `${(x - w / 2) / FACE.w * 100}%`, top: `${(y - h / 2) / FACE.h * 100}%`,
+                            width: `${w / FACE.w * 100}%`, height: `${h / FACE.h * 100}%` });
 }
 
 function buildFace() {
-  const s = FACE.size, svg = $("cc-face");
-  svg.setAttribute("viewBox", `0 0 ${s} ${s}`);
+  const { w: W, h: H } = FACE, svg = $("cc-face");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  $("cc").style.aspectRatio = `${W} / ${H}`;
   const defs = svgEl("defs", {}, svg);
-  const face = svgEl("linearGradient", { id: "g-face", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  svgEl("stop", { offset: 0, "stop-color": "#222327" }, face);
-  svgEl("stop", { offset: 1, "stop-color": "#141517" }, face);
-  const screw = svgEl("radialGradient", { id: "g-screw", cx: 0.38, cy: 0.32, r: 0.8 }, defs);
-  svgEl("stop", { offset: 0, "stop-color": "#6b6c71" }, screw);
-  svgEl("stop", { offset: 1, "stop-color": "#1b1c1e" }, screw);
-  svgEl("rect", { x: 0.75, y: 0.75, width: s - 1.5, height: s - 1.5, rx: FACE.corner, fill: "url(#g-face)",
-                  stroke: "#0a0a0b", "stroke-width": 1.5 }, svg);
-  svgEl("rect", { x: 3, y: 3, width: s - 6, height: s - 6, rx: FACE.corner - 2, fill: "none",
-                  stroke: "rgba(255,255,255,0.06)", "stroke-width": 1 }, svg);
-  const { x, y, w, h } = FACE.screen;
-  svgEl("rect", { x: x - 5, y: y - 5, width: w + 10, height: h + 10, rx: 4, fill: "#08080a",
-                  stroke: "rgba(255,255,255,0.07)", "stroke-width": 0.8 }, svg);
-  const i = FACE.screws.inset;
-  [[i, i, 20], [s - i, i, 70], [i, s - i, 115], [s - i, s - i, 160]].forEach(([cx, cy, a]) => {
-    svgEl("circle", { cx, cy, r: FACE.screws.r, fill: "url(#g-screw)", stroke: "#060607", "stroke-width": 0.8 }, svg);
-    const g = svgEl("g", { transform: `rotate(${a} ${cx} ${cy})`, stroke: "#0b0b0c", "stroke-width": 1.4,
-                           "stroke-linecap": "round" }, svg);
-    svgEl("line", { x1: cx - 3.6, y1: cy, x2: cx + 3.6, y2: cy }, g);
-    svgEl("line", { x1: cx, y1: cy - 3.6, x2: cx, y2: cy + 3.6 }, g);
-  });
-  const label = (text, lx, ly) => {
-    const t = svgEl("text", { x: lx, y: ly, "text-anchor": "middle", fill: "#c9c9c4", "font-size": 8.2,
-                              "font-weight": 650, "letter-spacing": 0.9, "font-family": "system-ui, sans-serif" }, svg);
-    t.textContent = text.toUpperCase();
+  const grad = (id, stops, attrs = { x1: 0, y1: 0, x2: 0, y2: 1 }, kind = "linearGradient") => {
+    const g = svgEl(kind, { id, ...attrs }, defs);
+    stops.forEach(([o, c]) => svgEl("stop", { offset: o, "stop-color": c }, g));
   };
-  for (const b of FACE.buttons) label(b.label, b.x, FACE.buttonLabelY);
-  label(FACE.knob.label, FACE.knob.x, FACE.knob.labelY);
-  place($("cc-screen"), x + w / 2, y + h / 2, w, h);
+  grad("g-face", [[0, "#26272a"], [0.5, "#1c1d1f"], [1, "#161719"]]);
+  grad("g-led", [[0, "#f2f2ef"], [0.6, "#a9aaa8"], [1, "#5e5f60"]], { cx: 0.4, cy: 0.35, r: 0.7 }, "radialGradient");
+  svgEl("rect", { x: 0.75, y: 0.75, width: W - 1.5, height: H - 1.5, rx: FACE.corner, fill: "url(#g-face)",
+                  stroke: "#0a0a0b", "stroke-width": 1.5 }, svg);
+  svgEl("rect", { x: 2.5, y: 2.5, width: W - 5, height: H - 5, rx: FACE.corner - 1.5, fill: "none",
+                  stroke: "rgba(255,255,255,0.07)", "stroke-width": 1 }, svg);
+  // The screen's glass: rounded corners and a thin bright rim.
+  const sc = FACE.screen;
+  svgEl("rect", { x: sc.x, y: sc.y, width: sc.w, height: sc.h, rx: sc.corner, fill: "#050506",
+                  stroke: "rgba(225,228,232,0.55)", "stroke-width": 0.9 }, svg);
+  // The card slot above MENU and TUNE, and the indicator above MONITOR (drawing only).
+  const sl = FACE.slot;
+  svgEl("rect", { x: sl.x, y: sl.y, width: sl.w, height: sl.h, rx: 2.5, fill: "#2b2c2f", stroke: "#0b0b0c",
+                  "stroke-width": 0.8 }, svg);
+  svgEl("rect", { x: sl.x + 3, y: sl.y + sl.h / 2 - 1.8, width: sl.w - 6, height: 3.6, rx: 1.5, fill: "#030303" }, svg);
+  svgEl("line", { x1: sl.x + 3, y1: sl.y + 1.2, x2: sl.x + sl.w - 3, y2: sl.y + 1.2, stroke: "rgba(255,255,255,0.12)",
+                  "stroke-width": 0.6 }, svg);
+  const led = FACE.indicator;
+  svgEl("circle", { cx: led.x, cy: led.y, r: led.d / 2, fill: "url(#g-led)", stroke: "#111", "stroke-width": 0.6 }, svg);
+  for (const b of FACE.buttons) {
+    svgEl("circle", { cx: b.x, cy: b.y, r: b.d / 2 + 2.2, fill: "#101112", stroke: "rgba(255,255,255,0.06)",
+                      "stroke-width": 0.6 }, svg);
+    const t = svgEl("text", { x: b.x, y: FACE.buttonLabelY, "text-anchor": "middle", fill: "#f1f1ee",
+                              "font-size": FACE.buttonLabelSize, "font-weight": 700, "letter-spacing": 0.3,
+                              "font-family": "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif" }, svg);
+    t.textContent = b.label;
+  }
+  const inset = sc.inset;
+  place($("cc-screen"), sc.x + sc.w / 2, sc.y + sc.h / 2, sc.w * (1 - 2 * inset), sc.h * (1 - 2 * inset));
 }
 
 function buildControls() {
@@ -871,9 +829,8 @@ function buildControls() {
     el.type = "button";
     el.className = "cc-btn";
     el.id = "cc-btn-" + b.n;
-    el.title = b.hint;
-    el.setAttribute("aria-label", b.hint);
-    place(el, b.x, b.y, b.w, b.h);
+    el.setAttribute("aria-label", b.label);
+    place(el, b.x, b.y, b.d, b.d);
     holdable(el, b.n);
     cc.append(el);
   }
@@ -883,11 +840,17 @@ function buildControls() {
   knob.id = "cc-knob";
   knob.tabIndex = 0;
   knob.setAttribute("role", "group");
-  knob.setAttribute("aria-label", "Knob: arrow keys turn it, Enter pushes it");
-  knob.title = "Turn: drag, scroll, or click its left or right side. Push: press its center.";
+  knob.setAttribute("aria-label", "Knob");
   place(knob, k.x, k.y, k.d, k.d);
-  knob.innerHTML = '<div class="cc-knurl" id="cc-knurl"><span class="cc-mark"></span></div>' +
-                   '<button type="button" class="cc-push" id="cc-push" tabindex="-1" aria-label="Push the knob"></button>';
+  knob.innerHTML = '<div class="cc-knurl" id="cc-knurl"></div><div class="cc-shine"></div>' +
+                   '<button type="button" class="cc-push" id="cc-push" tabindex="-1" aria-label="Knob push"></button>';
+  // The fluted edge: a wavy outline with k.flutes lobes.
+  const pts = [];
+  for (let i = 0; i < 180; i++) {
+    const a = i / 180 * 2 * Math.PI, r = 50 * (0.93 + 0.07 * Math.cos(k.flutes * a));
+    pts.push(`${(50 + r * Math.cos(a)).toFixed(2)}% ${(50 + r * Math.sin(a)).toFixed(2)}%`);
+  }
+  knob.querySelector(".cc-knurl").style.clipPath = `polygon(${pts.join(", ")})`;
   cc.append(knob);
   holdable($("cc-push"), 0);
   turnable(knob, $("cc-knurl"));
@@ -1020,16 +983,17 @@ const TOGGLE_SVG = '<svg viewBox="0 0 44 72" aria-hidden="true">' +
 
 function buildSwitches() {
   for (const el of document.querySelectorAll(".tog")) {
-    el.innerHTML = TOGGLE_SVG + (el.id === "sw-select" ? "" : `<span class="tog-n">${el.id.slice(-1)}</span>`);
+    const two = el.dataset.value !== undefined;      // a two-position switch: ECU Select, Fuel Pump
+    el.innerHTML = TOGGLE_SVG + (two ? "" : `<span class="tog-n">${el.id.slice(-1)}</span>`);
     el.addEventListener("click", () => {
       if (!interact()) return;
-      if (el.id === "sw-select") setControl("sel-ecu-select", ecuSelect() === "1" ? "2" : "1");
+      const other = el.dataset.value === "1" ? "2" : "1";
+      if (el.id === "sw-select") setControl("sel-ecu-select", other);
+      else if (el.id === "sw-pump") setControl("sel-pump", other);
       else setControl(el.dataset.ctl, !bench[el.dataset.ctl]);
     });
   }
-  // The levers: drag (forward = up), the arrow keys, or a click on a mark.
-  const LEVER_MARKS = { throttle: [["Full", 100], ["Cruise", throttleFor(24.0, 2400) * 100], ["Run-up", 25], ["Idle", 0]],
-                        prop: [["High", 100], ["Cruise", propFor(2400) * 100], ["Low", 0]] };
+  // The levers: drag (forward = up) or the arrow keys.
   for (const which of ["throttle", "prop"]) {
     const slot = $(which), knob = slot.querySelector(".lev-knob");
     const valueAt = (y) => {
@@ -1061,21 +1025,11 @@ function buildSwitches() {
       if (!interact()) return;
       setLever(which, to !== null ? to : eng[which] * 100 + step);
     });
-    for (const [name, pct] of LEVER_MARKS[which]) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "lev-mark";
-      b.id = `${which}-${name.toLowerCase().replace(/[^a-z]/g, "")}`;
-      b.style.setProperty("--v", pct / 100);
-      b.textContent = name;
-      b.title = `${which === "prop" ? "Prop lever" : "Throttle"} to ${name}`;
-      b.addEventListener("click", () => { if (interact()) setLever(which, pct); });
-      $(which + "-marks").append(b);
-    }
   }
-  for (const [id, key] of [["set-prop-stop", "prop-stop"], ["set-governor", "governor"]]) {
-    $(id).addEventListener("change", () => { if (M && booted && !scenarios.busy()) setControl(key, $(id).value); else showControls(); });
-  }
+  $("set-prop-stop").addEventListener("change", () => {
+    if (M && booted && !scenarios.busy()) setControl("prop-stop", $("set-prop-stop").value);
+    else showControls();
+  });
   $("cc-chord").addEventListener("click", () => { if (interact()) M._s32_wasm_button_pulse(0b1100, 1500); });
 }
 
@@ -1113,10 +1067,6 @@ function note(text, kind = "") {
 function showScenario() {
   const pick = $("scn-pick");
   pick.value = current ? current.id : "";
-  $("scn-shows").textContent = current ? current.shows || current.description : "Choose a scenario above.";
-  const guide = $("scn-guide");
-  guide.hidden = !(current && current.guide);
-  if (current && current.guide) guide.href = current.guide;
   $("bench-link").href = "index.html" + (current ? "?scenario=" + encodeURIComponent(current.id) : "");
   showStep();
 }
@@ -1126,31 +1076,31 @@ function showStep() {
   const act = $("step-act");
   if (!current) {
     $("step-n").textContent = " ";
-    $("step-say").textContent = "Choose a scenario.";
+    $("step-say").textContent = "Pick a scenario";
     $("step-watch").textContent = "";
     act.hidden = true;
   } else if (stepIdx < steps.length) {
     const st = steps[stepIdx];
-    $("step-n").textContent = `${current.title} · Step ${stepIdx + 1} of ${steps.length}`;
+    $("step-n").textContent = `${current.title} · ${stepIdx + 1}/${steps.length}`;
     $("step-say").textContent = st.say;
     $("step-watch").textContent = st.watch;
     act.hidden = !st.act;
     act.textContent = st.act || "";
     $("step-next").textContent = stepIdx === steps.length - 1 ? "Finish" : "Next";
   } else {
-    $("step-n").textContent = `${current.title} · Done`;
-    $("step-say").textContent = "That is the whole scenario.";
-    $("step-watch").textContent = "Pick another one, or press Restart to go through it again.";
+    $("step-n").textContent = current.title;
+    $("step-say").textContent = "Done";
+    $("step-watch").textContent = "";
     act.hidden = true;
   }
   showState();
 }
 
 const NOTES = {
-  unknown: (sc) => `No scenario named "${sc.id}". The emulator runs normally.`,
-  "no-firmware": () => "No firmware is loaded. The bench page below takes your own files.",
-  setup: (sc) => `Setting up ${sc.title}…`,
-  paused: () => "Ready. Press Start.",
+  unknown: (sc) => `No scenario "${sc.id}".`,
+  "no-firmware": () => "No firmware.",
+  setup: () => "Setting up…",
+  paused: () => "",
   running: () => "",
   error: (sc, e) => `${sc.title}: ${e && e.message}`,
 };
@@ -1164,7 +1114,7 @@ const scenarios = s32ScenarioRunner({
   refresh,
   resetControls(blank) {
     Object.assign(bench, BENCH_DEFAULTS);
-    Object.assign(eng, { throttle: 0, prop: 1, stop: "correct", governor: "working" });
+    Object.assign(eng, { throttle: 0, prop: 1, stop: "correct", pitch: 0 });
     engineStop();                        // the panel powers up with the engine stopped
     if (blank) cylinders = 4;            // the stock firmware's default configuration
     showControls();
@@ -1209,7 +1159,7 @@ function buildScenarioBar() {
   const pick = $("scn-pick");
   const none = document.createElement("option");
   none.value = "";
-  none.textContent = "Choose a scenario";
+  none.textContent = "Scenario";
   none.disabled = true;
   pick.append(none);
   for (const sc of SCENARIOS) {
@@ -1256,7 +1206,7 @@ async function loadDefaultFirmware() {
   const fw = await s32FetchDefaultFirmware();
   if (!fw) return false;
   for (const f of fw.files) s32LoadFile(M, f.name, new Uint8Array(await f.arrayBuffer()));
-  $("fw-label").textContent = `The emulator runs ${fw.label} firmware for the Controller and both ECUs in your browser.`;
+  $("fw-label").textContent = `Firmware: ${fw.label}. `;
   reboot();
   if (!booted) return false;
   if (M._s32_wasm_step_quanta(20000) === 0) reboot();
@@ -1270,7 +1220,7 @@ buildSwitches();
 buildScenarioBar();
 showControls();
 showScenario();
-$("step-say").textContent = "Loading the emulator…";
+$("step-say").textContent = "Loading…";
 
 createS32Module().then(async (mod) => {
   M = mod;
@@ -1286,11 +1236,11 @@ createS32Module().then(async (mod) => {
   }
   if (!ok) {
     note(NOTES["no-firmware"]());
-    $("step-say").textContent = "No firmware is loaded.";
+    $("step-say").textContent = "No firmware";
     window.S32_SCENARIO = { id, state: "no-firmware" };
     return;
   }
-  if (!M._s32_wasm_have_ct()) $("cc-over-text").textContent = "No Controller image is loaded.";
+  if (!M._s32_wasm_have_ct()) $("cc-over-text").textContent = "No Controller image";
   if (id !== null) {
     await runScenario(id, QUERY.get("autostart") === "1");
     if (window.S32_SCENARIO.state === "unknown") {

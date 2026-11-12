@@ -143,13 +143,18 @@ Picking a scenario from the list puts its id in the address bar, so the link can
 | `ecu-silent` | cruise, ECU 1 powered but its link silent: ECU1 tab red, its values shown as dashes |
 | `map-fail` | cruise, ECU 1's MAP sensor disconnected; selecting ECU 2 brings the AFR back |
 | `ecu-select` | cruise on ECU 2: ECU 2 fuels, ECU2 tab blue |
-| `rpm-limit` | 2950 RPM; with this configuration the ignition cuts at 3000 RPM |
+| `rpm-limit` | ECU setting 7 (the RPM limit, 3000 by default) set to 2750 in both ECUs, 2700 RPM; at 2750 the ignition cuts |
 | `trim-lop` | cruise with the fuel trim at -28 %: the bench AFR reads about 15.5 |
 
-The states in the right-hand column are what the stock v86 firmware shows on this bench. The scenarios are one table
-that both pages load (`SCENARIOS` in `emu/wasm/web/s32_bench.js`); `make bench-scenarios` opens each link on both pages
-in headless Chromium and checks that it sets up without a JavaScript error and reaches that state
-(`scripts/bench_scenarios.py`; `SCENARIO_ARGS="--shots DIR"` saves screenshots, `--pages cockpit` runs one page).
+The states in the right-hand column are what the stock v86 firmware shows on this bench. `rpm-limit` writes its
+setting into both ECUs' configuration chips the way the documented layout holds it (`model/s32_fram.ksy`: a 16-byte
+text slot per setting, then the checksum) and power-cycles, so the ECUs read it as they read any configuration; with
+2750 there both ECUs stop firing at 2750 RPM (observed). The next scenario puts the old value back.
+
+The scenarios are one table that both pages load (`SCENARIOS` in `emu/wasm/web/s32_bench.js`); `make bench-scenarios`
+opens each link on both pages in headless Chromium and checks that it sets up without a JavaScript error and reaches
+that state (`scripts/bench_scenarios.py`; `SCENARIO_ARGS="--shots DIR"` saves screenshots, `--pages cockpit` runs one
+page).
 
 ### The harness and its knobs
 
@@ -165,24 +170,24 @@ evidence.
 ## Cockpit view
 
 `cockpit.html`, next to the bench page, shows the same emulator to a pilot: the Cockpit Controller drawn as the
-instrument (its screen, the three buttons and the knob, all of which work, including a press and hold, and the Down +
-Back pair), the panel switches (Ignition 1 and 2, Fuel Pump 1 and 2, ECU Select), a power quadrant with a throttle
-(black knob) and a prop lever (blue knob), the engine's RPM and MAP, and a Spark (emulator) light per ECU that is on
-while that ECU fires (the emulator shows it; it is not a cockpit item). Above them, each scenario's steps for the
-pilot: what to do, what to watch, Next and Restart; below, what the scenario shows and the Bench section: the
-propeller's two bench settings and a link to the bench page at the same scenario. It follows the system's light or
-dark setting and fits a 390 px phone screen.
+instrument (its screen, the knob and the MENU, TUNE and MONITOR buttons, all of which work, including a press and
+hold, and a TUNE + MONITOR button for the two together), the panel switches (Ignition 1 and 2, a Fuel Pump switch
+that runs pump 1 or pump 2, ECU Select 1 / 2), a throttle (black knob) and a prop lever (blue knob), and the engine's
+RPM and MAP. Above them, the scenario's checklist: one item at a time, with what follows it in a few words, Next and
+Restart. Below, a folded Bench section with the propeller's low-pitch stop setting and a link to the bench page at the
+same scenario, and a one-line footer (firmware, not affiliated). The page follows the system's light or dark setting
+and fits a 390 px phone screen.
 
     cockpit.html?scenario=<id>                     set up, then wait for Start
     cockpit.html?scenario=<id>&autostart=1         set up and keep running
     cockpit.html?scenario=<id>&autostart=1&embed=1 only the Controller and the switches, on a transparent
                                                    background, for an iframe in a guide page
 
-The ids are the bench page's (table above). With no id the page starts at the run-up. The steps for the pilot are in
-the same table (`pilot`: `say`, `watch`, and for a step the pilot cannot do from the cockpit an action button), with
-the levers' positions (`quadrant`), a short `shows` text and a `guide` link (empty until the guide has a page for it).
-`make bench-scenarios` goes through every step on the page with its own controls and checks what each "watch" line
-says, from the panel's pixels, the ECUs' link data and the engine model.
+The ids are the bench page's (table above). With no id the page starts at the run-up. The checklist is in the same
+table (`pilot`: `say`, `watch`, and for an item the pilot cannot do from the cockpit an action button), with the
+levers' positions (`quadrant`); `shows` and `guide` are for the pilot guide and are not shown on the page.
+`make bench-scenarios` goes through every item on the page with its own controls and checks what each "watch" line
+says, from the panel's pixels, the ECUs' link data, the bench's spark counts and the engine model.
 
 ### The engine model
 
@@ -191,34 +196,36 @@ model is a simple bench model for an engine with a constant-speed propeller, mad
 not aircraft data and are not fitted to any engine. It is one table in the page (`ENGINE`) and drives the bench's
 existing RPM, MAP and throttle-sensor inputs; the emulated System32 and the C engine model are unchanged.
 
-* **Prop lever.** Sets the governed RPM, 2000 (Low) to 2700 (High), in a straight line. A working governor holds RPM
-  at that value whenever the engine has the power to turn faster; below that, the throttle sets the RPM.
 * **Throttle.** Sets the RPM the engine reaches with the blades on the low-pitch stop (both ECUs firing): 750 at idle,
-  1800 at 25 % (Run-up), 2520 at 50 %, 2620 at 65 %, 2700 at full, in straight lines between.
+  1800 at 25 %, 2520 at 50 %, 2620 at 65 %, 2700 at full, in straight lines between.
+* **Prop lever.** Sets the governed RPM, 2000 (back) to 2700 (forward), in a straight line. When the engine could turn
+  faster than that, the governor coarsens the blades until it holds the governed RPM. The blade angle follows the
+  angle that would hold it as a first-order lag with a time constant of 0.8 s, so a fast throttle push overshoots
+  first; while no ECU fires, the blades stay where they are. Below the governed RPM the blades sit on the stop and the
+  throttle sets the RPM.
 * **MAP.** With the throttle closed: 29.9 inHg stopped, 12.0 at 750 RPM, 10.0 at 2700 RPM. The throttle opens it
   toward 29.0 inHg (full throttle): 45 % of the way at 25 % throttle, 70 % at 50 %, 80 % at 65 %. So MAP rises with
   the throttle and falls a little as RPM rises.
 * **Spark.** An ECU counts as firing while its first coil fires at least half as often as the RPM calls for (once per
   revolution), over the last 0.3 s. With one ECU firing the engine makes 85 % of its power, which turns it at the cube
-  root of that (about 95 %): at the run-up, about 100 RPM less. With none it winds down and stops below 200 RPM; it
-  stays stopped until a scenario starts it again (no starter is modeled). Above governing, the governor holds RPM
-  while the power is enough.
+  root of that (about 95 %): at the run-up, about 100 RPM less; above the governed RPM the governor makes up the
+  difference. With none it winds down and stops below 200 RPM; it stays stopped until a scenario starts it again.
 * **Speed.** RPM moves toward its target with a time constant of 0.4 s up, 0.6 s down, 1.5 s with no spark. When a
   scenario starts the engine, RPM is held for 1.0 s while the ECUs pick up the crank signal.
-* **Bench settings.** Low-pitch stop: Correct (2700 RPM at full throttle on the stop) or Too fine (3150 RPM; the
-  throttle's RPM above idle scales with it). Governor: Working, or Failed: the blades stay on the low-pitch stop and
-  the throttle alone sets the RPM. A working governor holds RPM even with a fine stop, so an overspeed needs both.
+* **Low-pitch stop** (Bench section). Correct: 2700 RPM at full throttle on the stop. Too fine: 3150 RPM (the
+  throttle's RPM above idle scales with it).
 * **Not modeled.** A fixed-pitch propeller, the starter, mixture, fuel, temperatures, airspeed and load: none of them
   change the RPM.
 
-The levers' marks: throttle Idle (0 %), Run-up (25 %), Cruise (24 inHg at 2400 RPM, about 55 %) and Full; prop Low,
-Cruise (2400 RPM) and High. On the cockpit page a scenario that sets the engine sets the levers instead: run-up = prop
-High, throttle Run-up (1800 RPM); takeoff = both full (2700 RPM, 29.0 inHg); cruise and the scenarios built on it =
-prop Cruise, throttle Cruise (2400 RPM, 24.0 inHg); first-start leaves the engine stopped. `rpm-limit` on the cockpit
-page has a failed governor and a low-pitch stop set too fine at full throttle: the engine runs up to 3000 RPM, the
-ECUs cut spark at their limit, it sags to about 2700 and they fire again, a surge of about 0.6 s. On the bench page
-`rpm-limit` stays at a held 2950 RPM.
+On the cockpit page a scenario that sets the engine sets the levers instead: run-up = prop forward, throttle 25 %
+(1800 RPM); takeoff = both forward (2700 RPM, 29.0 inHg); cruise and the scenarios built on it = prop at 2400 RPM,
+throttle at 24.0 inHg (about 55 %); first-start leaves the engine stopped. `rpm-limit` has the RPM limit at 2750 (see
+above), a low-pitch stop set too fine and the run-up levers (about 2040 RPM on that stop). Throttle full, fast: RPM
+runs past 2700 before the governor catches up, the ECUs cut spark at 2750, RPM pulses there for about a second, and
+the governor then holds 2700 (within 10 RPM from about 3.5 s on).
 
-The Controller's face is drawn from one table in the page (`FACE`: the screen, each button, the knob, the labels); the
-buttons sit under the places where the firmware writes their labels on the screen (Up, Down, Back; the knob under
-"Push to Select").
+The Controller's face is drawn from a photo of the real unit, as one table in the page (`FACE`: the screen, the knob,
+each button and its label, the card slot and the indicator; the last two are drawing only). MENU, TUNE and MONITOR
+drive the same Controller inputs as the bench page's buttons of those names, and the knob's push the same as its PUSH.
+The firmware's soft labels (Up, Down, Back, Push to Select) appear on the screen only: in a list MENU moves up, TUNE
+down and MONITOR goes back.
