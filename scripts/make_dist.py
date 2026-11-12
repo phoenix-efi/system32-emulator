@@ -5,9 +5,10 @@
     scripts/make_dist.py --version V [--out dist]
 
 writes dist/system32-emulator-wasm-V.tar.gz holding s32_wasm.js, s32_wasm.wasm, index.html (the bench page),
-firmware-manifest.json (firmware/manifest.json: names, sizes, SHA-256 and release URLs of the default firmware, which
-is NOT in the bundle) and SHA256SUMS, plus the same SHA256SUMS next to the archive. The archive is reproducible: fixed
-member order, mtime 0, owner 0. Any image-like file in the bundle (.bin .hex .flat .fram .img) fails the run.
+cockpit.html (the cockpit page), s32_bench.js (the script both pages load), firmware-manifest.json
+(firmware/manifest.json: names, sizes, SHA-256 and release URLs of the default firmware, which is NOT in the bundle) and
+SHA256SUMS, plus the same SHA256SUMS next to the archive. The archive is reproducible: fixed member order, mtime 0,
+owner 0. Any image-like file in the bundle (.bin .hex .flat .fram .img) fails the run.
 """
 from __future__ import annotations
 
@@ -21,7 +22,8 @@ import tarfile
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 FILES = {"s32_wasm.js": REPO / "emu/wasm/build/s32_wasm.js", "s32_wasm.wasm": REPO / "emu/wasm/build/s32_wasm.wasm",
-         "index.html": REPO / "emu/wasm/build/index.html", "firmware-manifest.json": REPO / "firmware/manifest.json"}
+         "index.html": REPO / "emu/wasm/build/index.html", "cockpit.html": REPO / "emu/wasm/build/cockpit.html",
+         "s32_bench.js": REPO / "emu/wasm/build/s32_bench.js", "firmware-manifest.json": REPO / "firmware/manifest.json"}
 IMAGE_SUFFIXES = (".bin", ".hex", ".flat", ".fram", ".img", ".elf")
 
 

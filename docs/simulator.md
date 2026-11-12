@@ -146,10 +146,35 @@ Picking a scenario from the list puts its id in the address bar, so the link can
 | `rpm-limit` | 2950 RPM; with this configuration the ignition cuts at 3000 RPM |
 | `trim-lop` | cruise with the fuel trim at -28 %: the bench AFR reads about 15.5 |
 
-The states in the right-hand column are what the stock v86 firmware shows on this bench. The scenarios are one table in
-the page (`SCENARIOS` in `emu/wasm/web/index.html`); `make bench-scenarios` opens each link in headless Chromium and
-checks that it sets up without a JavaScript error and reaches that state (`scripts/bench_scenarios.py`;
-`SCENARIO_ARGS="--shots DIR"` saves screenshots).
+The states in the right-hand column are what the stock v86 firmware shows on this bench. The scenarios are one table
+that both pages load (`SCENARIOS` in `emu/wasm/web/s32_bench.js`); `make bench-scenarios` opens each link on both pages
+in headless Chromium and checks that it sets up without a JavaScript error and reaches that state
+(`scripts/bench_scenarios.py`; `SCENARIO_ARGS="--shots DIR"` saves screenshots, `--pages cockpit` runs one page).
+
+## Cockpit view
+
+`cockpit.html`, next to the bench page, shows the same emulator to a pilot: the Cockpit Controller drawn as the
+instrument (its screen, the three buttons and the knob, all of which work, including a press and hold, and the Down +
+Back pair), the panel switches (Ignition 1 and 2, Fuel Pump 1 and 2, ECU Select), one throttle, the engine's RPM and
+MAP, and a light per ECU that is on while that ECU fires. Above them, each scenario's steps for the pilot: what to
+do, what to watch, Next and Restart; below, what the scenario shows and a link to the bench page at the same
+scenario. It follows the system's light or dark setting and fits a 390 px phone screen.
+
+    cockpit.html?scenario=<id>                     set up, then wait for Start
+    cockpit.html?scenario=<id>&autostart=1         set up and keep running
+    cockpit.html?scenario=<id>&autostart=1&embed=1 only the Controller and the switches, on a transparent
+                                                   background, for an iframe in a guide page
+
+The ids are the bench page's (table above). With no id the page starts at the run-up. The steps for the pilot are in
+the same table (`pilot`: `say`, `watch`, and for a step the pilot cannot do from the cockpit, such as raising the
+engine to 3000 RPM, an action button), with a short `shows` text and a `guide` link (empty until the guide has a page
+for it). `make bench-scenarios` goes through every step on the page with its own controls and checks what each "watch"
+line says, from the panel's pixels and the ECUs' link data.
+
+The throttle sets RPM, MAP and the throttle sensor together: Idle 750 RPM / 12 inHg, Run-up 1800 / 20, Cruise
+2400 / 24, Full 2700 / 29, in a straight line between them. The Controller's face is drawn from one table in the page
+(`FACE`: the screen, each button, the knob, the labels); the buttons sit under the places where the firmware writes
+their labels on the screen (Up, Down, Back; the knob under "Push to Select").
 
 ### The harness and its knobs
 

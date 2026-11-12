@@ -7,8 +7,9 @@
 #   make check-nofw     the same without any firmware (the firmware cases are not run)
 #   make firmware       fetch and verify the default firmware into .firmware-cache/v86 (S32_V86_SRC=<dir> for a
 #                       local copy of the update files instead of the release assets)
-#   make bench-site     the browser bench with its default firmware in build/bench-site (make serve-bench serves it)
-#   make bench-scenarios  the bench page's scenarios (?scenario=<id>) in headless Chromium on that site
+#   make bench-site     the browser bench and cockpit pages with their default firmware in build/bench-site
+#                       (make serve-bench serves it)
+#   make bench-scenarios  the scenarios (?scenario=<id>) on the bench and cockpit pages in headless Chromium on that site
 #   make dist           the versioned WebAssembly bundle for other sites (dist/, scripts/make_dist.py)
 
 .PHONY: all emu test test-c test-scripts wasm-emcc wasm wasm-test wasm-host-test firmware conformance-synthetic \
@@ -89,27 +90,29 @@ BENCH_ARGS ?=
 bench: wasm
 	python3 scripts/bench.py --firmware-dir "$(FW_DIR)" $(BENCH_ARGS)
 
-# The bench page with the default firmware next to it (firmware/manifest.json; the page checks each file's SHA-256
-# before it loads anything). build/bench-site is git-ignored and is never published from here: the firmware files are
-# release assets with their own licence (firmware/LICENSE-FIRMWARE).
+# The bench page (index.html) and the cockpit page (cockpit.html) with the default firmware next to them
+# (firmware/manifest.json; each page checks each file's SHA-256 before it loads anything). build/bench-site is
+# git-ignored and is never published from here: the firmware files are release assets with their own licence
+# (firmware/LICENSE-FIRMWARE).
 BENCH_SITE := build/bench-site
 bench-site: wasm firmware
 	rm -rf $(BENCH_SITE) && mkdir -p $(BENCH_SITE)
-	for f in index.html s32_wasm.js s32_wasm.wasm; do cp "emu/wasm/build/$$f" $(BENCH_SITE)/; done
+	for f in index.html cockpit.html s32_bench.js s32_wasm.js s32_wasm.wasm; do cp "emu/wasm/build/$$f" $(BENCH_SITE)/; done
 	python3 -I scripts/fetch_firmware.py --cache $(FW_CACHE) --no-derive --bench-dir $(BENCH_SITE)/firmware
 
 SERVE_PORT ?= 8787
 serve-bench: bench-site
 	python3 -m http.server $(SERVE_PORT) --bind 127.0.0.1 --directory $(BENCH_SITE)
 
-# The bench page's scenarios (?scenario=<id>, scripts/bench_scenarios.py) in headless Chromium (Playwright from uv.lock):
-# each one sets up without a JavaScript error and reaches the state it describes. Not part of make check.
+# The scenarios (?scenario=<id>, scripts/bench_scenarios.py) on the bench and cockpit pages in headless Chromium
+# (Playwright from uv.lock): each one sets up without a JavaScript error and reaches the state it describes, and each
+# pilot step on the cockpit page shows what it says. Not part of make check.
 # SCENARIO_ARGS adds options (--shots DIR, --only id,id).
 SCENARIO_ARGS ?=
 bench-scenarios: bench-site
 	$(PYRUN) -I scripts/bench_scenarios.py --site $(BENCH_SITE) $(SCENARIO_ARGS)
 
-# The versioned WebAssembly bundle a site embeds: the module, the bench page, the firmware
+# The versioned WebAssembly bundle a site embeds: the module, the bench and cockpit pages, the firmware
 # manifest (no firmware) and a SHA-256 list. VERSION defaults to `git describe`.
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
 dist: wasm

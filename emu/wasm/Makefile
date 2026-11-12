@@ -6,7 +6,7 @@ B        = build
 
 EXPORTED_FNS = ["_malloc","_free","_s32_wasm_load_ct_firmware","_s32_wasm_load_ec_firmware","_s32_wasm_load_ec_bflash","_s32_wasm_load_ec_pflash","_s32_wasm_load_fram","_s32_wasm_get_fram_ptr","_s32_wasm_set_map_cell","_s32_wasm_get_map_json","_s32_wasm_set_engine","_s32_wasm_set_link","_s32_wasm_clear_fram","_s32_wasm_load_sd","_s32_wasm_set_tps_fault","_s32_wasm_set_an_fault","_s32_wasm_set_sensors","_s32_wasm_set_ecu_an","_s32_wasm_set_ct_an","_s32_wasm_set_ct_pin","_s32_wasm_set_rpm","_s32_wasm_set_cylinders","_s32_wasm_set_switches","_s32_wasm_button","_s32_wasm_button_pulse","_s32_wasm_encoder_turn","_s32_wasm_boot","_s32_wasm_step_quanta","_s32_wasm_render_rgba","_s32_wasm_get_telemetry_json","_s32_wasm_get_ecu_console","_s32_wasm_knob","_s32_wasm_knob_error","_s32_wasm_knob_names","_s32_wasm_boot_plain","_s32_wasm_trace_enable","_s32_wasm_trace_ptr","_s32_wasm_trace_len","_s32_wasm_trace_clear","_s32_wasm_trace_finish","_s32_wasm_clear_ec","_s32_wasm_clear_ct","_s32_wasm_ecu_app_start","_s32_wasm_have_ct","_s32_wasm_home_seen"]
 
-all: $(B)/s32_wasm.js $(B)/index.html
+all: $(B)/s32_wasm.js $(B)/index.html $(B)/cockpit.html $(B)/s32_bench.js
 
 # The native front end (emu/pair/s32pair.c) compiled to WebAssembly for Node, single-threaded (S32_SERIAL), the same
 # knobs from the environment and the same files: the cross-build conformance gate (scripts/conformance.py) runs it beside
@@ -69,8 +69,9 @@ $(B)/build_id: FORCE | $(B)
 $(B)/s32pair_node.js: $(PAIR_SRC) ../common/s32board.h ../common/s32trace.h ../common/s32panel.h ../common/s32snap.h node/env_pre.js $(B)/sfr_headers $(B)/build_id | $(B)
 	$(EMCC) $(PAIR_FLAGS) -DS32_BUILD_ID='"$(shell cat $(B)/build_id)-node"' $(PAIR_SRC) -o $@
 
-$(B)/index.html: web/index.html | $(B)
-	cp web/index.html $(B)/index.html
+# The pages: the bench (index.html), the cockpit view (cockpit.html) and the script they share (s32_bench.js).
+$(B)/index.html $(B)/cockpit.html $(B)/s32_bench.js: $(B)/%: web/% | $(B)
+	cp web/$* $@
 
 # No firmware is built, copied or published from here. The browser sim is bring-your-own
 # firmware: the user drops a Controller .bin/.hex, ECU .bin/.hex and optional .fram files on the page.

@@ -807,6 +807,7 @@
 </div>
 
 <script src="s32_wasm.js"></script>
+<script src="s32_bench.js"></script>
 <script>
 let M = null;
 let booted = false;
@@ -823,111 +824,11 @@ let replayPlaying = false;
 let lastReplayStepSim = 0;
 
 const lcdCanvas = document.getElementById("lcd");
-let lcdGl = null;
-let lcdGlTex = null;
-let lcdCtx2d = null;
-let lcdImgData = null;
-
-function initLcdRenderer() {
-  const glOpts = {
-    alpha: false,
-    depth: false,
-    stencil: false,
-    antialias: false,
-    preserveDrawingBuffer: true,
-    powerPreference: "high-performance",
-    desynchronized: true
-  };
-  const gl = lcdCanvas.getContext("webgl2", glOpts) || lcdCanvas.getContext("webgl", glOpts);
-  if (gl) {
-    const isWebGL2 = (typeof WebGL2RenderingContext !== "undefined") && (gl instanceof WebGL2RenderingContext);
-    const vsSrc = `
-      attribute vec2 a_pos;
-      varying vec2 v_uv;
-      void main() {
-        v_uv = vec2((a_pos.x + 1.0) * 0.5, (1.0 - a_pos.y) * 0.5);
-        gl_Position = vec4(a_pos, 0.0, 1.0);
-      }
-    `;
-    const fsSrc = `
-      precision mediump float;
-      varying vec2 v_uv;
-      uniform sampler2D u_tex;
-      void main() {
-        gl_FragColor = texture2D(u_tex, v_uv);
-      }
-    `;
-    const compile = (type, src) => {
-      const sh = gl.createShader(type);
-      gl.shaderSource(sh, src);
-      gl.compileShader(sh);
-      return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : null;
-    };
-    const vs = compile(gl.VERTEX_SHADER, vsSrc);
-    const fs = compile(gl.FRAGMENT_SHADER, fsSrc);
-    const prog = gl.createProgram();
-    if (vs && fs && prog) {
-      gl.attachShader(prog, vs);
-      gl.attachShader(prog, fs);
-      gl.linkProgram(prog);
-      if (gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-        gl.useProgram(prog);
-        const buf = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-        const loc = gl.getAttribLocation(prog, "a_pos");
-        gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-        const tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 320, 240, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.viewport(0, 0, lcdCanvas.width, lcdCanvas.height);
-
-        lcdGl = gl;
-        lcdGlTex = tex;
-        const badge = document.getElementById("gpu-mode");
-        if (badge) badge.textContent = isWebGL2 ? "WebGL2 GPU" : "WebGL GPU";
-        return;
-      }
-    }
-  }
-  lcdCtx2d = lcdCanvas.getContext("2d");
-  lcdImgData = lcdCtx2d.createImageData(320, 240);
-  const badge = document.getElementById("gpu-mode");
-  if (badge) badge.textContent = "Canvas2D";
-}
+const lcd = s32CreateLcd(lcdCanvas);
+document.getElementById("gpu-mode").textContent = lcd.mode;
 
 function renderLcdFrame(rgbaPtr) {
-  if (lcdGl) {
-    const pixels = new Uint8Array(M.HEAPU8.buffer, rgbaPtr, 320 * 240 * 4);
-    lcdGl.texSubImage2D(lcdGl.TEXTURE_2D, 0, 0, 0, 320, 240, lcdGl.RGBA, lcdGl.UNSIGNED_BYTE, pixels);
-    lcdGl.drawArrays(lcdGl.TRIANGLE_STRIP, 0, 4);
-  } else if (lcdCtx2d) {
-    const src = new Uint8ClampedArray(M.HEAPU8.buffer, rgbaPtr, 320 * 240 * 4);
-    lcdImgData.data.set(src);
-    lcdCtx2d.putImageData(lcdImgData, 0, 0);
-  }
-}
-
-initLcdRenderer();
-
-function writeBytesToWasm(uint8, fn, extraArgs = []) {
-  const ptr = M._malloc(uint8.length);
-  M.HEAPU8.set(uint8, ptr);
-  const rc = fn(ptr, uint8.length, ...extraArgs);
-  M._free(ptr);
-  return rc;
-}
-
-function parseFilenameKeyHint(name) {
-  const m = /^EC(\d{3})(\d{3})\.bin$/i.exec(name.trim());
-  if (!m) return -1;
-  return (parseInt(m[1], 10) * 1000 + parseInt(m[2], 10)) & 0xFF;
+  lcd.draw(M, rgbaPtr);
 }
 
 function setLoadedSummary(text) {
@@ -937,10 +838,6 @@ function setLoadedSummary(text) {
 
 // What runs: the Controller and ECU images by origin (the site's default firmware, or files the user dropped).
 const FW = { ct: null, ecu: null, ecuDefault: false, defaultNote: null };
-const isCtName = (u) => (u.startsWith("CT") || u.includes("PHOENIX_CT") || u.endsWith("_CT_PROG.BIN")) &&
-                        (u.endsWith(".BIN") || u.endsWith(".HEX"));
-const isEcuName = (u) => !isCtName(u) && (u.endsWith("_BFLASH.BIN") || u.endsWith("_PFLASH.BIN") || u.endsWith(".FLAT") ||
-                         ((u.startsWith("EC") || u.includes("PHOENIX_EC")) && (u.endsWith(".BIN") || u.endsWith(".HEX"))));
 
 function showFirmware() {
   const fwv = document.getElementById("fw-ver");
@@ -964,7 +861,7 @@ async function handleFiles(fileList, label, isDefault = false) {
   let loadedAny = false;
   const loadedNames = [];
   const upperNames = Array.from(fileList, (f) => f.name.toUpperCase());
-  const dropsCt = upperNames.some(isCtName), dropsEcu = upperNames.some(isEcuName);
+  const dropsCt = upperNames.some(s32IsCtName), dropsEcu = upperNames.some(s32IsEcuName);
   if (dropsCt) { M._s32_wasm_clear_ct(); FW.ct = null; }          // a dropped image replaces, never mixes
   if (dropsEcu) { M._s32_wasm_clear_ec(); FW.ecu = null; FW.ecuDefault = false; }
   for (const file of fileList) {
@@ -976,48 +873,7 @@ async function handleFiles(fileList, label, isDefault = false) {
       parseDatalogCsv(text, name);
       continue;
     }
-    if ((upper.startsWith("CT") || upper.includes("PHOENIX_CT") || upper.endsWith("_CT_PROG.BIN")) &&
-        (upper.endsWith(".BIN") || upper.endsWith(".HEX"))) {
-      const rc = writeBytesToWasm(buf, M._s32_wasm_load_ct_firmware);
-      if (rc > 0) {
-        loadedNames.push(name);
-        loadedAny = true;
-      }
-    } else if (upper.endsWith(".FLAT")) {                      // application only: the ECUs start it directly
-      writeBytesToWasm(buf, M._s32_wasm_load_ec_pflash);
-      loadedNames.push(name);
-      loadedAny = true;
-    } else if (upper.endsWith("_BFLASH.BIN")) {
-      writeBytesToWasm(buf, M._s32_wasm_load_ec_bflash);
-      loadedNames.push(name);
-      loadedAny = true;
-    } else if (upper.endsWith("_PFLASH.BIN")) {
-      writeBytesToWasm(buf, M._s32_wasm_load_ec_pflash);
-      loadedNames.push(name);
-      loadedAny = true;
-    } else if ((upper.startsWith("EC") || upper.includes("PHOENIX_EC")) &&
-               (upper.endsWith(".BIN") || upper.endsWith(".HEX"))) {
-      const hint = parseFilenameKeyHint(name);
-      const key = writeBytesToWasm(buf, M._s32_wasm_load_ec_firmware, [hint]);
-      if (key >= 0) {
-        loadedNames.push(name);
-        loadedAny = true;
-      }
-    } else if (upper.endsWith(".FRAM") || upper.endsWith(".CFG")) {
-      if (upper.includes("CT") || upper.includes("CONTROLLER")) {
-        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(0, p, n));
-      } else if (upper.includes("ECU2") || upper.includes("E2")) {
-        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(2, p, n));
-      } else if (upper.includes("ECU1") || upper.includes("E1")) {
-        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(1, p, n));
-      } else {
-        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(1, p, n));
-        writeBytesToWasm(buf, (p, n) => M._s32_wasm_load_fram(2, p, n));
-      }
-      loadedNames.push(name);
-      loadedAny = true;
-    } else if (upper.endsWith(".IMG") || upper.endsWith(".FAT")) {
-      writeBytesToWasm(buf, M._s32_wasm_load_sd);
+    if (s32LoadFile(M, name, buf)) {
       loadedNames.push(name);
       loadedAny = true;
     }
@@ -1130,12 +986,11 @@ function updateTpsFault() {
 }
 
 function telemetry() {
-  return JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json()));
+  return s32Telemetry(M);
 }
 
-// A harness knob by name (emu/common/s32board.c), as the command line sets it from the environment.
 function setKnob(name, value) {
-  return M.ccall("s32_wasm_knob", "number", ["string", "string"], [name, value]);
+  return s32SetKnob(M, name, value);
 }
 
 // ECU 1's MAP input: its sensor, or a wire fault from now on.
@@ -1577,51 +1432,13 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
-/* Scenarios: named bench states that a page can link to (?scenario=<id>, optionally &autostart=1) or a visitor picks
- * from the list. Each one starts from the same power-up (resetBench: the page's default controls with the engine
- * stopped, a power cycle with the configuration kept, the home page, fuel trim 0 %) and then runs its steps in order:
- *   ["preset", "cruise" | "takeoff"]   the engine presets above
- *   ["rpm", n]                          the RPM presets above
- *   ["set", id, value]                  one control on the page (a slider, checkbox or list), then its own handler
- *   ["trim", pct]                       turn the knob until both ECUs report that fuel trim
- *   ["run", secs]                       run the bench for that long
- * "blank": the configuration chips are erased before the power-up instead of kept. After the steps the bench pauses,
- * unless the link says autostart=1 or the visitor picked the scenario from the list. */
-const SCENARIOS = [
-  { id: "first-start", title: "First start", blank: true,
-    description: "Blank configuration chips, first power-up, engine stopped.",
-    steps: [["run", 1]] },
-  { id: "runup", title: "Run-up",
-    description: "1800 RPM, both ECUs firing, ECU 1 selected. Try Ignition Enable, the fuel pumps and ECU Select.",
-    steps: [["rpm", 1800], ["set", "sl-map", 20.0], ["set", "sl-tps", 30], ["run", 3]] },
-  { id: "cruise", title: "Cruise",
-    description: "2400 RPM, 24.0 inHg, fuel trim 0 %.",
-    steps: [["preset", "cruise"], ["run", 3]] },
-  { id: "takeoff", title: "Takeoff",
-    description: "2700 RPM, 29.0 inHg, full throttle.",
-    steps: [["preset", "takeoff"], ["run", 3]] },
-  { id: "ecu-silent", title: "ECU 1 silent",
-    description: "Cruise with ECU 1 powered but its data link silent: red ECU1 tab, dashes for its values.",
-    steps: [["preset", "cruise"], ["run", 1], ["set", "sw-e1-lnk", false], ["run", 4]] },
-  { id: "map-fail", title: "MAP sensor failed",
-    description: "Cruise with ECU 1's MAP sensor disconnected. Select ECU 2 to fuel from the other sensor.",
-    steps: [["preset", "cruise"], ["run", 1], ["set", "sel-e1-map", "open"], ["run", 3]] },
-  { id: "ecu-select", title: "Fuel from ECU 2",
-    description: "Cruise with ECU Select on ECU 2: ECU 2 fuels the engine (blue ECU2 tab).",
-    steps: [["preset", "cruise"], ["run", 1], ["set", "sel-ecu-select", "2"], ["run", 3]] },
-  { id: "rpm-limit", title: "Near the RPM limit",
-    description: "2950 RPM. With this configuration the ignition cuts at 3000 RPM: move the RPM slider there.",
-    steps: [["preset", "cruise"], ["rpm", 2950], ["run", 3]] },
-  { id: "trim-lop", title: "Leaned with trim",
-    description: "Cruise with the fuel trim turned to -28 %: the bench AFR reads about 15.5.",
-    steps: [["preset", "cruise"], ["trim", -28], ["run", 3]] },
-];
+/* Scenarios (SCENARIOS in s32_bench.js, shared with the cockpit page): named bench states that a page can link to
+ * (?scenario=<id>, optionally &autostart=1) or a visitor picks from the list. */
 
 // The controls a scenario starts from, at the values the page loads with (engine configuration and replay excluded).
 const SCENARIO_CONTROLS = ["sl-rpm", "sl-map", "sl-tps", "sl-afr", "sl-iat", "sl-et", "sl-batt1", "sl-batt2", "sl-noise",
   "sw-e1-pwr", "sw-e1-lnk", "sw-e1-pld", "sw-e1-inj", "sw-e1-ret", "sel-e1-map",
   "sw-e2-pwr", "sw-e2-lnk", "sw-e2-pld", "sw-e2-inj", "sw-e2-ret", "sel-e2-tps", "sw-pump1", "sw-pump2"];
-let scenarioBusy = false;
 
 function showScenarioNote(text) {
   const el = document.getElementById("scn-note");
@@ -1648,94 +1465,49 @@ function renderScenarioList() {
   }
 }
 
-// Run the bench for secs of emulated time in short slices, drawing the panel between them.
-async function advance(secs) {
-  for (let left = Math.round(secs * 10000); left > 0;) {
-    const n = Math.min(2500, left);
-    M._s32_wasm_step_quanta(n);
-    left -= n;
-    renderLcdFrame(M._s32_wasm_render_rgba());
-    await new Promise((r) => setTimeout(r, 0));
-  }
-  renderTelemetry(telemetry());
-}
-
-async function setTrim(target) {
-  for (let tries = 0; tries < 4; tries++) {
-    const trim = telemetry().trim_pct;
-    if (trim[0] === target && trim[1] === target) return;
-    if (trim[0] !== target) M._s32_wasm_encoder_turn(target - trim[0]);
-    await advance(Math.abs(target - trim[0]) * 0.135 + 1.5);   /* one detent per 0.135 s, then the status frames */
-  }
-  throw new Error(`the fuel trim did not reach ${target} %`);
-}
-
-async function resetBench(blank) {
-  replayPlaying = false;
-  if (afrManualOverride) resetAfrAuto();
-  for (const id of SCENARIO_CONTROLS) {
-    const el = document.getElementById(id);
-    if (el.type === "checkbox") el.checked = el.defaultChecked;
-    else if (el.tagName === "SELECT") el.value = Array.from(el.options).find((o) => o.defaultSelected)?.value ?? el.options[0].value;
-    else el.value = el.defaultValue;
-  }
-  document.getElementById("sl-rpm").value = "0";          /* the panel powers up with the engine stopped */
-  if (blank) {
-    for (const target of [0, 1, 2]) M._s32_wasm_clear_fram(target);
-    document.getElementById("sel-cyl").value = "4";      /* the stock firmware's default configuration */
-  }
-  rebootSystem();
-  if (!booted) throw new Error("the bench did not boot");
-  for (let waited = 0; M._s32_wasm_have_ct() && M._s32_wasm_home_seen() < 0 && waited < 20; waited += 0.5) await advance(0.5);
-  await advance(1.0);
-  if (!blank) await setTrim(0);
-}
-
-const SCENARIO_ACTIONS = {
-  preset: (name) => ({ cruise: setCruisePreset, takeoff: setTakeoffPreset })[name](),
-  rpm: (rpm) => setRpmPreset(rpm),
-  set: (id, value) => {
-    const el = document.getElementById(id);
-    if (el.type === "checkbox") el.checked = value;
-    else el.value = String(value);
-    el.dispatchEvent(new Event(el.type === "range" ? "input" : "change"));
+const scenarios = s32ScenarioRunner({
+  M: () => M,
+  booted: () => booted,
+  reboot: rebootSystem,
+  draw: () => renderLcdFrame(M._s32_wasm_render_rgba()),
+  refresh: () => renderTelemetry(telemetry()),
+  resetControls(blank) {
+    replayPlaying = false;
+    if (afrManualOverride) resetAfrAuto();
+    for (const id of SCENARIO_CONTROLS) {
+      const el = document.getElementById(id);
+      if (el.type === "checkbox") el.checked = el.defaultChecked;
+      else if (el.tagName === "SELECT") el.value = Array.from(el.options).find((o) => o.defaultSelected)?.value ?? el.options[0].value;
+      else el.value = el.defaultValue;
+    }
+    document.getElementById("sl-rpm").value = "0";          /* the panel powers up with the engine stopped */
+    if (blank) document.getElementById("sel-cyl").value = "4";   /* the stock firmware's default configuration */
   },
-  trim: (pct) => setTrim(pct),
-  run: (secs) => advance(secs),
-};
+  actions: {
+    preset: (name) => ({ cruise: setCruisePreset, takeoff: setTakeoffPreset })[name](),
+    rpm: (rpm) => setRpmPreset(rpm),
+    set: (id, value) => {
+      const el = document.getElementById(id);
+      if (el.type === "checkbox") el.checked = value;
+      else el.value = String(value);
+      el.dispatchEvent(new Event(el.type === "range" ? "input" : "change"));
+    },
+  },
+  setSpeed: setSimSpeed,
+  note(kind, sc, err) {
+    showScenarioNote({ unknown: `No scenario named "${sc.id}". The bench runs normally.`,
+                       "no-firmware": `${sc.title}: load firmware first.`, setup: `Setting up: ${sc.title}…`,
+                       paused: `${sc.title}: paused. Press 1× to run.`, running: "",
+                       error: `${sc.title}: ${err && err.message}` }[kind]);
+  },
+  started(sc) {
+    for (const x of SCENARIOS) document.getElementById("scn-" + x.id).classList.toggle("active", x.id === sc.id);
+  },
+  finished: () => renderMapTable(),
+});
 
-async function runScenario(id, keepRunning) {
-  const sc = SCENARIOS.find((x) => x.id === id);
-  if (!sc) {
-    showScenarioNote(`No scenario named "${id}". The bench runs normally.`);
-    window.S32_SCENARIO = { id, state: "unknown" };
-    return;
-  }
-  if (!M || !booted) {
-    showScenarioNote(`${sc.title}: load firmware first.`);
-    window.S32_SCENARIO = { id, state: "no-firmware" };
-    return;
-  }
-  if (scenarioBusy) return;
-  scenarioBusy = true;
-  window.S32_SCENARIO = { id, state: "running" };
-  for (const x of SCENARIOS) document.getElementById("scn-" + x.id).classList.toggle("active", x.id === id);
-  showScenarioNote(`Setting up: ${sc.title}…`);
-  setSimSpeed(0);
-  try {
-    await resetBench(!!sc.blank);
-    for (const [action, ...args] of sc.steps) await SCENARIO_ACTIONS[action](...args);
-    renderMapTable();
-    setSimSpeed(keepRunning ? 1 : 0);
-    showScenarioNote(keepRunning ? "" : `${sc.title}: paused. Press 1× to run.`);
-    window.S32_SCENARIO = { id, state: "done" };
-  } catch (e) {
-    setSimSpeed(1);
-    showScenarioNote(`${sc.title}: ${e.message}`);
-    window.S32_SCENARIO = { id, state: "error", error: e.message };
-  } finally {
-    scenarioBusy = false;
-  }
+function runScenario(id, keepRunning) {
+  return scenarios.run(id, keepRunning);
 }
 
 function pickScenario(id) {
@@ -1753,33 +1525,13 @@ function scenarioFromUrl() {
 
 renderScenarioList();
 
-// Default firmware. The manifest names the files, their SHA-256 and, optionally, how the page labels them ("label",
-// "note"): the emulator repository's `make bench-site` writes one for the stock v86 update files, which are FlyEFII's
-// copyright and come from release assets (firmware/manifest.json, firmware/LICENSE-FIRMWARE). A site that serves this
-// page may write its own firmware/manifest.json next to it. With no manifest nothing is loaded: bring your own
-// firmware. Each file is checked against its SHA-256 before anything is loaded; if any check fails, nothing is loaded.
-// Dropping your own files replaces these.
+// Default firmware (s32FetchDefaultFirmware in s32_bench.js): the files firmware/manifest.json names, each checked
+// against its SHA-256 first. Dropping your own files replaces these.
 async function loadDefaultFirmware() {
-  let manifest;
-  try {
-    const r = await fetch("firmware/manifest.json", { cache: "no-cache" });
-    if (!r.ok) return;
-    manifest = await r.json();
-  } catch (e) { return; }
-  const files = [];
-  for (const f of manifest.files) {
-    const r = await fetch("firmware/" + encodeURIComponent(f.name), { cache: "no-cache" });
-    if (!r.ok) throw new Error(f.name + ": HTTP " + r.status);
-    const buf = await r.arrayBuffer();
-    if (!(window.crypto && crypto.subtle)) throw new Error("no SubtleCrypto here (use https or localhost) to check " + f.name);
-    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buf)), (b) => b.toString(16).padStart(2, "0")).join("");
-    if (digest !== f.sha256) throw new Error(f.name + ": SHA-256 does not match the manifest");
-    files.push(new File([buf], f.name));
-  }
-  const ver = manifest.version ? ` ${manifest.version}` : "";
-  FW.defaultNote = manifest.note || null;
-  const label = manifest.label || `default firmware${ver}` + (manifest.source_commit ? ` (build ${String(manifest.source_commit).slice(0, 12)})` : "");
-  await handleFiles(files, label, true);
+  const fw = await s32FetchDefaultFirmware();
+  if (!fw) return;
+  FW.defaultNote = fw.note;
+  await handleFiles(fw.files, fw.label, true);
   // With no configuration files dropped the ECUs' configuration chips are blank: on its first power-up the firmware
   // writes its default settings into them (as on a new ECU) and starts firing from the next. Run that first power-up
   // (2 s) and power-cycle once, so the bench starts configured.

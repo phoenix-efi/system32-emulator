@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>System32 Emulator: Cockpit</title>
+<script>
+  // ?embed=1: only the Controller and the switches, for an iframe in a guide page.
+  if (new URLSearchParams(location.search).get("embed") === "1") document.documentElement.classList.add("embed");
+</script>
+<style>
+  :root {
+    --bg: #f3f2ee;
+    --ink: #1c1c1e;
+    --ink-2: #3f3f44;
+    --muted: #707076;
+    --line: #dddbd4;
+    --field: #ffffff;
+    --accent: #1d5bc7;
+    --accent-ink: #ffffff;
+    --shadow: rgba(30, 28, 20, 0.22);
+    /* The hardware looks the same in both themes. */
+    --hw-engrave: #d4d4cf;
+    --hw-engrave-2: #9b9b97;
+    --lamp-on: #6ee394;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111214;
+      --ink: #ececea;
+      --ink-2: #c9c9c5;
+      --muted: #909096;
+      --line: #2a2b30;
+      --field: #1b1c1f;
+      --accent: #84abff;
+      --accent-ink: #0d1424;
+      --shadow: rgba(0, 0, 0, 0.6);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 32px; }
+
+  a { color: var(--accent); }
+  button { font: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* Header */
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 22px 0 16px; }
+  .brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .brand-name { font-weight: 650; font-size: 16px; letter-spacing: 0.01em; }
+  .brand-view { color: var(--muted); font-size: 15px; }
+  .nff {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; white-space: nowrap;
+  }
+
+  /* Scenario bar */
+  .scn {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 1fr) auto;
+    gap: 28px;
+    align-items: start;
+    padding: 20px 0 22px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    display: block; margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  select {
+    width: 100%; font: inherit; font-size: 15px; color: var(--ink); background: var(--field);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  .scn-note { display: block; margin-top: 8px; font-size: 13px; color: var(--muted); min-height: 1.2em; }
+  .step-n { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .step-say { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; }
+  .step-watch { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; max-width: 62ch; }
+  .step-watch:empty { display: none; }
+  .watch-label { color: var(--muted); font-weight: 600; margin-right: 4px; }
+  .step-ctl { display: flex; gap: 8px; align-items: center; padding-top: 20px; flex-wrap: wrap; justify-content: flex-end; }
+  .btn {
+    border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 8px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn[disabled] { opacity: 0.45; cursor: default; }
+  .btn[hidden] { display: none; }
+  @media (max-width: 900px) {
+    .scn { grid-template-columns: 1fr; gap: 14px; }
+    .step-ctl { padding-top: 0; justify-content: flex-start; }
+  }
+
+  /* Cockpit: the Controller on the left, the switches on the right */
+  .cockpit {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+    padding: 40px 0 36px;
+  }
+  @media (max-width: 900px) { .cockpit { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 24px; } }
+
+  /* The Cockpit Controller: a square face for a 3 1/8 in instrument hole. Every control is placed from FACE (script). */
+  .cc-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cc {
+    position: relative;
+    width: 100%;
+    max-width: 590px;
+    aspect-ratio: 1 / 1;
+    filter: drop-shadow(0 22px 28px var(--shadow)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  .cc-face { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .cc-screen { position: absolute; background: #000; overflow: hidden; }
+  .cc-screen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  .cc-glass {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 38%, transparent 39%);
+  }
+  .cc-over {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    gap: 12px; background: rgba(8, 8, 10, 0.78); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+    color: #f1f1ee; font-size: 16px; font-weight: 600; text-align: center; padding: 16px;
+  }
+  .cc-over[hidden] { display: none; }
+  .cc-over .btn.primary { font-size: 16px; padding: 10px 26px; }
+  .cc-btn {
+    position: absolute;
+    border-radius: 5px;
+    border: 1px solid #070708;
+    background: linear-gradient(180deg, #48494e 0%, #2c2d31 55%, #232427 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 2px 0 #0b0b0c, 0 3px 5px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    padding: 0;
+    touch-action: none;
+  }
+  .cc-btn:hover { background: linear-gradient(180deg, #505157 0%, #313236 55%, #26272a 100%); }
+  .cc-btn.down {
+    transform: translateY(1.5px);
+    background: linear-gradient(180deg, #2a2b2f 0%, #232427 100%);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 0.5px 0 #0b0b0c;
+  }
+  .cc-knob { position: absolute; border-radius: 50%; touch-action: none; }
+  .cc-knurl {
+    position: absolute; inset: 0; border-radius: 50%; cursor: grab;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 60%, rgba(0, 0, 0, 0.35) 72%, transparent 73%),
+      radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.22), transparent 60%),
+      repeating-conic-gradient(from 0deg, #34353a 0deg 5deg, #17181a 5deg 10deg);
+    border: 1px solid #060607;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(0, 0, 0, 0.35);
+  }
+  .cc-knurl:active { cursor: grabbing; }
+  .cc-mark {
+    position: absolute; left: 50%; top: 4%; width: 6%; height: 12%; margin-left: -3%;
+    border-radius: 2px; background: #e9e9e4; opacity: 0.85;
+  }
+  .cc-push {
+    position: absolute; left: 21%; top: 21%; width: 58%; height: 58%; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 1px solid #060607;
+    background: radial-gradient(circle at 38% 32%, #5a5b61 0%, #2c2d31 45%, #18191b 100%);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.18), 0 1px 3px rgba(0, 0, 0, 0.6);
+  }
+  .cc-push.down { transform: scale(0.96); background: radial-gradient(circle at 40% 36%, #45464b 0%, #222326 60%, #151618 100%); }
+  .cc-help { margin: 0; max-width: 520px; font-size: 13px; color: var(--muted); text-align: center; }
+  .linkish {
+    background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font-size: 13px;
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+
+  /* The switch panel */
+  .side { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+  .plate {
+    position: relative;
+    border-radius: 14px;
+    padding: 26px 26px 22px;
+    color: var(--hw-engrave);
+    background:
+      radial-gradient(circle at 13px 13px, #4b4c51 0 3px, #0d0d0e 3.5px, transparent 4px),
+      radial-gradient(circle at calc(100% - 13px) 13px, #4b4c51 0 3px, #0d0d0e 3.5px, transparent 4px),
+      radial-gradient(circle at 13px calc(100% - 13px), #4b4c51 0 3px, #0d0d0e 3.5px, transparent 4px),
+      radial-gradient(circle at calc(100% - 13px) calc(100% - 13px), #4b4c51 0 3px, #0d0d0e 3.5px, transparent 4px),
+      linear-gradient(180deg, #27282b 0%, #1e1f22 100%);
+    border: 1px solid #0c0c0d;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 26px var(--shadow);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .engr { font-size: 10.5px; font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hw-engrave); }
+  .sw-groups { display: flex; justify-content: space-between; gap: 10px; --tog-w: 52px; --tog-h: 85px; }
+  .plate { container-type: inline-size; }
+  .grp .engr { white-space: nowrap; }
+  .grp { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+  .grp-body { display: flex; align-items: flex-start; gap: 2px; }
+  .legend {
+    position: relative; height: var(--tog-h); width: 26px;
+    font-size: 9.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hw-engrave-2);
+  }
+  .legend span { position: absolute; right: 2px; transform: translateY(-50%); }
+  .legend span:first-child { top: 13%; }
+  .legend span:last-child { top: 87%; }
+  .tog {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; padding: 0;
+    width: var(--tog-w); cursor: pointer; color: var(--hw-engrave); border-radius: 8px;
+  }
+  .tog svg { width: var(--tog-w); height: var(--tog-h); display: block; overflow: visible; }
+  .tog .lever { transform-box: view-box; transform-origin: 22px 36px; transition: transform 0.12s ease-out; }
+  .tog[aria-checked="false"] .lever, .tog[data-value="2"] .lever { transform: scaleY(-1); }
+  .tog-n { font-size: 12px; font-weight: 650; }
+  .thr { margin-top: 26px; }
+  .thr-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .thr input[type="range"] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 34px; margin: 6px 0 0; background: transparent;
+    cursor: pointer;
+  }
+  .thr input[type="range"]::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px; background: #0d0e10;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+  .thr input[type="range"]::-moz-range-track {
+    height: 8px; border-radius: 4px; background: #0d0e10;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+  .thr input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -10px; border-radius: 50%;
+    background: radial-gradient(circle at 36% 30%, #66676d 0%, #2a2b2f 50%, #141517 100%);
+    border: 1px solid #000; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+  }
+  .thr input[type="range"]::-moz-range-thumb {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 36% 30%, #66676d 0%, #2a2b2f 50%, #141517 100%);
+    border: 1px solid #000; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+  }
+  .thr-marks { position: relative; height: 26px; margin: 0 14px; }
+  .thr-mark {
+    position: absolute; top: 0; transform: translateX(-50%); background: none; border: none; padding: 6px 2px 0;
+    font-size: 10px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hw-engrave-2);
+    cursor: pointer; white-space: nowrap;
+  }
+  .thr-mark::before {
+    content: ""; position: absolute; left: 50%; top: 0; width: 1px; height: 5px; background: var(--hw-engrave-2);
+  }
+  .thr-mark:hover { color: var(--hw-engrave); }
+  .thr-mark.first { transform: translateX(-14px); }
+  .thr-mark.first::before { left: 14px; }
+  .thr-mark.last { transform: translateX(calc(-100% + 14px)); }
+  .thr-mark.last::before { left: auto; right: 14px; }
+  .eng { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+  .eng-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end; margin-top: 10px; }
+  .ro-label { font-size: 10px; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; color: var(--hw-engrave-2); }
+  .ro-val { font-size: 28px; line-height: 1.1; font-weight: 500; color: #f4f4f0; font-variant-numeric: tabular-nums; }
+  .ro-val small { font-size: 12px; color: var(--hw-engrave-2); margin-left: 4px; font-weight: 500; }
+  .lamps { display: flex; gap: 12px; align-items: center; padding-bottom: 6px; font-size: 12px; font-weight: 650; }
+  .lamp-wrap { display: inline-flex; align-items: center; gap: 5px; }
+  .lamp {
+    width: 11px; height: 11px; border-radius: 50%; background: #2e3033; display: inline-block;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+  .lamp.on { background: var(--lamp-on); box-shadow: 0 0 9px rgba(110, 227, 148, 0.75), inset 0 -1px 1px rgba(0, 0, 0, 0.25); }
+  @media (max-width: 420px) { .plate { padding: 24px 16px 20px; } }
+  /* A narrow panel (a phone, or the embed beside the Controller): smaller switches. */
+  @container (max-width: 340px) {
+    .sw-groups { --tog-w: 40px; --tog-h: 66px; gap: 6px; }
+    .legend { width: 20px; font-size: 9px; }
+    .grp .engr { font-size: 9.5px; letter-spacing: 0.08em; }
+    .ro-val { font-size: 24px; }
+    .eng-row { gap: 10px; }
+  }
+
+  .about p { margin: 0; color: var(--ink-2); max-width: 46ch; }
+  .about a { display: inline-block; margin-top: 10px; font-size: 14px; }
+  .about a[hidden] { display: none; }
+
+  /* The bench, folded */
+  .bench { border-top: 1px solid var(--line); padding: 16px 0; }
+  .bench summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
+  .bench p { margin: 10px 0 6px; color: var(--ink-2); max-width: 70ch; }
+  .notice { padding: 16px 0 36px; font-size: 12px; color: var(--muted); }
+  .notice p { margin: 0 0 4px; }
+
+  /* A phone */
+  @media (max-width: 560px) {
+    .wrap { padding: 0 16px; }
+    .top { padding: 14px 0 10px; }
+    .scn { padding: 14px 0 16px; gap: 10px; }
+    .scn .eyebrow[for] { display: none; }
+    .scn-note { margin-top: 4px; }
+    .scn-note:empty { display: none; }
+    .step-say { font-size: 18px; }
+    .step-watch { font-size: 14px; margin-top: 4px; }
+    .btn { padding: 7px 14px; }
+  }
+
+  /* ?embed=1 */
+  html.embed body { background: transparent; }
+  html.embed .top, html.embed .scn, html.embed .about, html.embed .bench, html.embed .notice .full,
+  html.embed .cc-help { display: none; }
+  html.embed .wrap { padding: 0 12px; }
+  html.embed .cockpit { padding: 12px 0 8px; gap: 28px; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; }
+  @media (max-width: 680px) { html.embed .cockpit { grid-template-columns: minmax(0, 1fr); } }
+  html.embed .notice { padding: 0 0 10px; font-size: 11px; text-align: center; }
+  html:not(.embed) .notice .short { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="brand-name">System32 Emulator</span>
+      <span class="brand-view">Cockpit</span>
+    </div>
+    <span class="nff">Not for flight</span>
+  </header>
+
+  <section class="scn" aria-label="Scenario">
+    <div>
+      <label class="eyebrow" for="scn-pick">Scenario</label>
+      <select id="scn-pick"></select>
+      <span class="scn-note" id="scn-note" role="status"></span>
+    </div>
+    <div aria-live="polite">
+      <div class="step-n" id="step-n">&nbsp;</div>
+      <p class="step-say" id="step-say">Loading the emulator…</p>
+      <p class="step-watch"><span class="watch-label">Watch:</span><span id="step-watch"></span></p>
+    </div>
+    <div class="step-ctl">
+      <button type="button" class="btn" id="step-act" hidden></button>
+      <button type="button" class="btn primary" id="scn-start" hidden>Start</button>
+      <button type="button" class="btn primary" id="step-next" hidden>Next</button>
+      <button type="button" class="btn" id="scn-restart" disabled>Restart</button>
+    </div>
+  </section>
+
+  <main class="cockpit">
+    <div class="cc-col">
+      <div class="cc" id="cc" aria-label="Cockpit Controller">
+        <svg class="cc-face" id="cc-face" aria-hidden="true"></svg>
+        <div class="cc-screen" id="cc-screen">
+          <canvas id="lcd" width="320" height="240" aria-label="Controller screen"></canvas>
+          <div class="cc-glass"></div>
+          <div class="cc-over" id="cc-over" hidden>
+            <span id="cc-over-text"></span>
+            <button type="button" class="btn primary" id="cc-start" hidden>Start</button>
+          </div>
+        </div>
+      </div>
+      <p class="cc-help">Drag, scroll or click the knob to turn it; press its center to push it. Buttons work with a tap
+        or a press and hold. <button type="button" class="linkish" id="cc-chord">Press Down and Back together</button></p>
+    </div>
+
+    <div class="side">
+      <div class="plate" id="switches">
+        <div class="sw-groups">
+          <div class="grp">
+            <span class="engr">Ignition</span>
+            <div class="grp-body">
+              <div class="legend" aria-hidden="true"><span>On</span><span>Off</span></div>
+              <button type="button" class="tog" id="sw-ign1" role="switch" aria-label="Ignition 1" data-ctl="sw-e1-pld"></button>
+              <button type="button" class="tog" id="sw-ign2" role="switch" aria-label="Ignition 2" data-ctl="sw-e2-pld"></button>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="engr">Fuel Pump</span>
+            <div class="grp-body">
+              <div class="legend" aria-hidden="true"><span>On</span><span>Off</span></div>
+              <button type="button" class="tog" id="sw-pump1" role="switch" aria-label="Fuel Pump 1" data-ctl="sw-pump1"></button>
+              <button type="button" class="tog" id="sw-pump2" role="switch" aria-label="Fuel Pump 2" data-ctl="sw-pump2"></button>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="engr">ECU Select</span>
+            <div class="grp-body">
+              <div class="legend" aria-hidden="true"><span>1</span><span>2</span></div>
+              <button type="button" class="tog" id="sw-select" aria-label="ECU Select" data-value="1"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="thr">
+          <div class="thr-head"><label class="engr" for="throttle">Throttle</label></div>
+          <input type="range" id="throttle" min="0" max="100" step="1" value="55" />
+          <div class="thr-marks" id="thr-marks"></div>
+        </div>
+
+        <div class="eng">
+          <span class="engr">Engine</span>
+          <div class="eng-row">
+            <div><div class="ro-label">RPM</div><div class="ro-val" id="ro-rpm">0</div></div>
+            <div><div class="ro-label">MAP</div><div class="ro-val"><span id="ro-map">24.0</span><small>inHg</small></div></div>
+            <div>
+              <div class="ro-label">Ignition</div>
+              <div class="lamps">
+                <span class="lamp-wrap"><span class="lamp" id="lamp-1"></span>1</span>
+                <span class="lamp-wrap"><span class="lamp" id="lamp-2"></span>2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="about">
+        <span class="eyebrow">What this shows</span>
+        <p id="scn-shows"></p>
+        <a id="scn-guide" href="#" hidden>Read more in the guide</a>
+      </div>
+    </div>
+  </main>
+
+  <details class="bench" id="bench">
+    <summary>Bench</summary>
+    <p>The bench has every engine and sensor control, the fault switches, the fuel and ignition maps, and a place to
+      load your own firmware files.</p>
+    <a id="bench-link" href="index.html">Open the bench at this scenario</a>
+  </details>
+
+  <footer class="notice">
+    <p class="full"><strong>Not for flight.</strong> <span id="fw-label">The emulator runs the Controller and both ECUs
+      in your browser.</span></p>
+    <p class="full">This emulator is not affiliated with, endorsed by, or sponsored by Protek Performance / FlyEFII.</p>
+    <p class="short">Emulator. Not for flight. Not affiliated with Protek Performance / FlyEFII.</p>
+  </footer>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-nut" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d9dadc" /><stop offset="0.5" stop-color="#8c8e92" /><stop offset="1" stop-color="#4a4c50" />
+    </linearGradient>
+    <radialGradient id="g-bush" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#9a9ca0" /><stop offset="1" stop-color="#2a2b2e" />
+    </radialGradient>
+    <linearGradient id="g-bat" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7b7d82" /><stop offset="0.45" stop-color="#f1f2f3" /><stop offset="1" stop-color="#6d6f74" />
+    </linearGradient>
+    <radialGradient id="g-tip" cx="0.4" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#ffffff" /><stop offset="0.6" stop-color="#b9bbbf" /><stop offset="1" stop-color="#6a6c70" />
+    </radialGradient>
+  </defs>
+</svg>
+
+<script src="s32_wasm.js"></script>
+<script src="s32_bench.js"></script>
+<script>
+"use strict";
+/* The cockpit view: the Cockpit Controller as the instrument, the panel switches, one throttle, and each scenario's
+ * steps for the pilot (SCENARIOS in s32_bench.js). It drives the same bench as index.html, with the same controls and
+ * defaults (BENCH_DEFAULTS), through the same scenario runner. */
+
+const QUERY = new URLSearchParams(location.search);
+const EMBED = QUERY.get("embed") === "1";
+const $ = (id) => document.getElementById(id);
+
+/* The Controller's face, in hundredths of an inch: 3.30 in square, for a 3 1/8 in round instrument hole. x / y are the
+ * centers of the controls. The three buttons sit under the places where the firmware writes their labels at the
+ * bottom of the screen (Up, Down, Back), the knob under "Push to Select". Change these to match a photo of the real
+ * bezel; nothing else needs to move. */
+const FACE = {
+  size: 330,
+  corner: 14,
+  screws: { inset: 17, r: 6.5 },
+  screen: { x: 37, y: 30, w: 256, h: 192 },
+  knob: { x: 86, y: 270, d: 66, label: "Push to Select", labelY: 318 },
+  buttons: [
+    { n: 1, label: "Up", x: 145, y: 268, w: 42, h: 24, hint: "Up. From the gauges: Main Menu." },
+    { n: 2, label: "Down", x: 207, y: 268, w: 42, h: 24, hint: "Down. From the gauges: Tuning Menu." },
+    { n: 3, label: "Back", x: 264, y: 268, w: 42, h: 24, hint: "Back. From the gauges: the next page." },
+  ],
+  buttonLabelY: 298,
+  knobDegPerClick: 18,
+};
+
+/* One throttle: its position sets engine speed, manifold pressure and the throttle sensor together, along these points
+ * (throttle %, RPM, MAP inHg). Run-up, Cruise and Full are the bench page's presets. */
+const THROTTLE = [[0, 750, 12.0], [30, 1800, 20.0], [55, 2400, 24.0], [100, 2700, 29.0]];
+const THROTTLE_MARKS = [["Idle", 0], ["Run-up", 30], ["Cruise", 55], ["Full", 100]];
+
+let M = null;
+let booted = false;
+let simSpeed = 0;
+let lastFrameWall = performance.now();
+let frameCounter = 0;
+const lcd = s32CreateLcd($("lcd"));
+
+function renderLcdFrame(rgbaPtr) {
+  lcd.draw(M, rgbaPtr);
+}
+
+function telemetry() {
+  return s32Telemetry(M);
+}
+
+/* ---- The bench: the bench page's controls by id, at its defaults ---- */
+
+const bench = { ...BENCH_DEFAULTS };
+let cylinders = 4;                    // the default firmware's configuration
+const TRIGGER_DEG = [80, 77];         // the trigger sensor positions, as on the bench page
+
+function applyEngine() {
+  if (!M) return;
+  M._s32_wasm_set_cylinders(cylinders, TRIGGER_DEG[0], TRIGGER_DEG[1]);
+  M._s32_wasm_set_rpm(bench["sl-rpm"]);
+}
+
+function applySensors() {
+  if (!M) return;
+  M._s32_wasm_set_sensors(bench["sl-map"], bench["sl-tps"], bench["sl-iat"], bench["sl-et"], bench["sl-batt1"],
+                          bench["sl-batt2"], bench["sl-noise"], -1.0);
+}
+
+function applyEcu(k) {
+  if (!M) return;
+  const p = k === 0 ? "sw-e1-" : "sw-e2-";
+  M._s32_wasm_set_switches(k, bench[p + "pld"] ? 1 : 0, bench[p + "inj"] ? 1 : 0, bench[p + "ret"] ? 1 : 0,
+                           bench[p + "pwr"] ? 1 : 0);
+  M._s32_wasm_set_link(k, bench[p + "lnk"] ? 1 : 0);
+}
+
+function applyTpsFault() {
+  if (!M) return;
+  const mode = bench["sel-e2-tps"];
+  if (mode === "float") M._s32_wasm_set_tps_fault(1, 512, 30);
+  else if (mode === "gnd") M._s32_wasm_set_tps_fault(1, 0, 0);
+  else if (mode === "5v") M._s32_wasm_set_tps_fault(1, 1023, 0);
+  else { M._s32_wasm_set_tps_fault(1, -1, 0); applySensors(); }
+}
+
+function applyMapFault() {
+  if (!M || !booted) return;
+  const mode = bench["sel-e1-map"];
+  M.ccall("s32_wasm_set_an_fault", "number", ["number", "number", "string"], [0, 5, mode === "none" ? "" : mode]);
+}
+
+function applyPumps() {
+  if (!M || !booted) return;
+  const t = (telemetry().time_s + 0.001).toFixed(4);
+  const pos = (id) => (bench[id] ? "on" : "off");
+  s32SetKnob(M, "S32_SWITCH", `${t}:pump1=${pos("sw-pump1")},${t}:pump2=${pos("sw-pump2")}`);
+}
+
+function reboot() {
+  if (!M) return;
+  booted = M._s32_wasm_boot(cylinders, TRIGGER_DEG[0], TRIGGER_DEG[1]) === 0;
+  if (booted) {
+    applyEngine();
+    applySensors();
+    applyEcu(0);
+    applyEcu(1);
+    applyTpsFault();
+    applyMapFault();
+    applyPumps();
+  }
+  resetLamps();
+}
+
+// One bench control by its id on the bench page, then what that control drives.
+function setControl(id, value) {
+  if (id === "sel-ecu-select") {      // the switch grounds the Fuel Injectors Enable wire of the ECU not selected
+    bench["sw-e1-inj"] = value === "1" || value === "both";
+    bench["sw-e2-inj"] = value === "2" || value === "both";
+    applyEcu(0);
+    applyEcu(1);
+  } else if (!(id in BENCH_DEFAULTS)) {
+    throw new Error(`no control ${id} on the cockpit page`);
+  } else {
+    bench[id] = typeof BENCH_DEFAULTS[id] === "number" ? Number(value) : value;
+    if (id === "sl-rpm") applyEngine();
+    else if (id.startsWith("sl-")) applySensors();
+    else if (id.startsWith("sw-e1-")) applyEcu(0);
+    else if (id.startsWith("sw-e2-")) applyEcu(1);
+    else if (id === "sel-e1-map") applyMapFault();
+    else if (id === "sel-e2-tps") applyTpsFault();
+    else applyPumps();
+  }
+  showControls();
+}
+
+function setEngine(rpm, map, tps) {
+  bench["sl-rpm"] = rpm;
+  if (map !== undefined) bench["sl-map"] = map;
+  if (tps !== undefined) bench["sl-tps"] = tps;
+  applyEngine();
+  applySensors();
+  showControls();
+}
+
+function throttleCurve(pct) {
+  for (let i = 1; i < THROTTLE.length; i++) {
+    const [p0, r0, m0] = THROTTLE[i - 1], [p1, r1, m1] = THROTTLE[i];
+    if (pct <= p1) {
+      const f = (pct - p0) / (p1 - p0);
+      return [Math.round((r0 + f * (r1 - r0)) / 10) * 10, Math.round((m0 + f * (m1 - m0)) * 10) / 10];
+    }
+  }
+  const last = THROTTLE[THROTTLE.length - 1];
+  return [last[1], last[2]];
+}
+
+function setThrottle(pct) {
+  const [rpm, map] = throttleCurve(pct);
+  setEngine(rpm, map, pct);
+}
+
+/* ---- What the page shows of the bench ---- */
+
+const ecuSelect = () => (bench["sw-e2-inj"] && !bench["sw-e1-inj"] ? "2" : "1");
+
+function showControls() {
+  for (const el of document.querySelectorAll(".tog[role=switch]")) el.setAttribute("aria-checked", String(!!bench[el.dataset.ctl]));
+  const sel = $("sw-select");
+  sel.dataset.value = ecuSelect();
+  sel.setAttribute("aria-label", `ECU Select: ${ecuSelect()}`);
+  $("throttle").value = String(bench["sl-tps"]);
+  $("ro-map").textContent = Number(bench["sl-map"]).toFixed(1);
+}
+
+// The ignition lights: an ECU's light is on while its coil outputs fire (more than 5 sparks a second).
+let sparkMark = null;
+const lamps = [false, false];
+
+function resetLamps() {
+  sparkMark = null;
+}
+
+function showReadouts(t) {
+  $("ro-rpm").textContent = String(Math.round(t.rpm));
+  const sp = t.ecu.map((e) => e.coils[0].sparks);
+  if (!sparkMark || t.time_s < sparkMark.t || sp.some((v, k) => v < sparkMark.sp[k])) {
+    sparkMark = { t: t.time_s, sp };
+  } else if (t.time_s - sparkMark.t >= 0.25) {
+    for (const k of [0, 1]) lamps[k] = (sp[k] - sparkMark.sp[k]) / (t.time_s - sparkMark.t) > 5;
+    sparkMark = { t: t.time_s, sp };
+  }
+  for (const k of [0, 1]) $("lamp-" + (k + 1)).classList.toggle("on", lamps[k]);
+}
+
+function refresh() {
+  if (M && booted) showReadouts(telemetry());
+}
+
+/* ---- The Controller ---- */
+
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(name, attrs, parent) {
+  const el = document.createElementNS(SVGNS, name);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  if (parent) parent.append(el);
+  return el;
+}
+
+function place(el, x, y, w, h) {
+  const s = FACE.size;
+  Object.assign(el.style, { left: `${(x - w / 2) / s * 100}%`, top: `${(y - h / 2) / s * 100}%`,
+                            width: `${w / s * 100}%`, height: `${h / s * 100}%` });
+}
+
+function buildFace() {
+  const s = FACE.size, svg = $("cc-face");
+  svg.setAttribute("viewBox", `0 0 ${s} ${s}`);
+  const defs = svgEl("defs", {}, svg);
+  const face = svgEl("linearGradient", { id: "g-face", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  svgEl("stop", { offset: 0, "stop-color": "#222327" }, face);
+  svgEl("stop", { offset: 1, "stop-color": "#141517" }, face);
+  const screw = svgEl("radialGradient", { id: "g-screw", cx: 0.38, cy: 0.32, r: 0.8 }, defs);
+  svgEl("stop", { offset: 0, "stop-color": "#6b6c71" }, screw);
+  svgEl("stop", { offset: 1, "stop-color": "#1b1c1e" }, screw);
+  svgEl("rect", { x: 0.75, y: 0.75, width: s - 1.5, height: s - 1.5, rx: FACE.corner, fill: "url(#g-face)",
+                  stroke: "#0a0a0b", "stroke-width": 1.5 }, svg);
+  svgEl("rect", { x: 3, y: 3, width: s - 6, height: s - 6, rx: FACE.corner - 2, fill: "none",
+                  stroke: "rgba(255,255,255,0.06)", "stroke-width": 1 }, svg);
+  const { x, y, w, h } = FACE.screen;
+  svgEl("rect", { x: x - 5, y: y - 5, width: w + 10, height: h + 10, rx: 4, fill: "#08080a",
+                  stroke: "rgba(255,255,255,0.07)", "stroke-width": 0.8 }, svg);
+  const i = FACE.screws.inset;
+  [[i, i, 20], [s - i, i, 70], [i, s - i, 115], [s - i, s - i, 160]].forEach(([cx, cy, a]) => {
+    svgEl("circle", { cx, cy, r: FACE.screws.r, fill: "url(#g-screw)", stroke: "#060607", "stroke-width": 0.8 }, svg);
+    const g = svgEl("g", { transform: `rotate(${a} ${cx} ${cy})`, stroke: "#0b0b0c", "stroke-width": 1.4,
+                           "stroke-linecap": "round" }, svg);
+    svgEl("line", { x1: cx - 3.6, y1: cy, x2: cx + 3.6, y2: cy }, g);
+    svgEl("line", { x1: cx, y1: cy - 3.6, x2: cx, y2: cy + 3.6 }, g);
+  });
+  const label = (text, lx, ly) => {
+    const t = svgEl("text", { x: lx, y: ly, "text-anchor": "middle", fill: "#c9c9c4", "font-size": 8.2,
+                              "font-weight": 650, "letter-spacing": 0.9, "font-family": "system-ui, sans-serif" }, svg);
+    t.textContent = text.toUpperCase();
+  };
+  for (const b of FACE.buttons) label(b.label, b.x, FACE.buttonLabelY);
+  label(FACE.knob.label, FACE.knob.x, FACE.knob.labelY);
+  place($("cc-screen"), x + w / 2, y + h / 2, w, h);
+}
+
+function buildControls() {
+  const cc = $("cc");
+  for (const b of FACE.buttons) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "cc-btn";
+    el.id = "cc-btn-" + b.n;
+    el.title = b.hint;
+    el.setAttribute("aria-label", b.hint);
+    place(el, b.x, b.y, b.w, b.h);
+    holdable(el, b.n);
+    cc.append(el);
+  }
+  const k = FACE.knob;
+  const knob = document.createElement("div");
+  knob.className = "cc-knob";
+  knob.id = "cc-knob";
+  knob.tabIndex = 0;
+  knob.setAttribute("role", "group");
+  knob.setAttribute("aria-label", "Knob: arrow keys turn it, Enter pushes it");
+  knob.title = "Turn: drag, scroll, or click its left or right side. Push: press its center.";
+  place(knob, k.x, k.y, k.d, k.d);
+  knob.innerHTML = '<div class="cc-knurl" id="cc-knurl"><span class="cc-mark"></span></div>' +
+                   '<button type="button" class="cc-push" id="cc-push" tabindex="-1" aria-label="Push the knob"></button>';
+  cc.append(knob);
+  holdable($("cc-push"), 0);
+  turnable(knob, $("cc-knurl"));
+}
+
+// The page is a bench: any control starts it when it waits (paused), none acts while a scenario is being set up.
+function interact() {
+  if (!M || !booted || scenarios.busy()) return false;
+  if (simSpeed === 0) setSpeed(1);
+  return true;
+}
+
+// A Controller button (0 = the knob's push): down while the pointer or key is down, so a tap and a hold both work.
+function holdable(el, n) {
+  const up = () => {
+    if (!el.classList.contains("down")) return;
+    el.classList.remove("down");
+    M._s32_wasm_button(n, 0);
+  };
+  const down = () => {
+    if (el.classList.contains("down") || !interact()) return false;
+    el.classList.add("down");
+    M._s32_wasm_button(n, 1);
+    return true;
+  };
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (down()) el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+  el.addEventListener("lostpointercapture", up);
+  el.addEventListener("keydown", (e) => {
+    if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); down(); }
+  });
+  el.addEventListener("keyup", (e) => {
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); up(); }
+  });
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+let knobAngle = 0;
+function turnKnob(steps) {
+  if (!steps || !interact()) return;
+  M._s32_wasm_encoder_turn(steps);
+  knobAngle += steps * FACE.knobDegPerClick;
+  $("cc-knurl").style.transform = `rotate(${knobAngle}deg)`;
+}
+
+// The knob turns by dragging around it, the mouse wheel, the arrow keys, or a click on its left or right half.
+function turnable(knob, knurl) {
+  let drag = null;
+  const angleAt = (e) => {
+    const r = knob.getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
+  };
+  knurl.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    knob.focus({ preventScroll: true });
+    drag = { id: e.pointerId, a: angleAt(e), acc: 0, x: e.clientX, y: e.clientY, moved: false };
+    knurl.setPointerCapture(e.pointerId);
+  });
+  knurl.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 5) drag.moved = true;
+    const a = angleAt(e);
+    let d = a - drag.a;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    drag.a = a;
+    drag.acc += d;
+    while (Math.abs(drag.acc) >= FACE.knobDegPerClick) {
+      const dir = drag.acc > 0 ? 1 : -1;
+      drag.acc -= dir * FACE.knobDegPerClick;
+      turnKnob(dir);
+    }
+  });
+  const end = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && e.type === "pointerup") {
+      const r = knob.getBoundingClientRect();
+      turnKnob(e.clientX < r.left + r.width / 2 ? -1 : 1);
+    }
+    drag = null;
+  };
+  knurl.addEventListener("pointerup", end);
+  knurl.addEventListener("pointercancel", end);
+  let wheel = 0;
+  knob.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    wheel += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY;
+    while (Math.abs(wheel) >= 40) {
+      const dir = wheel < 0 ? 1 : -1;
+      wheel += dir * 40;
+      turnKnob(dir);
+    }
+  }, { passive: false });
+  let pushing = false;
+  knob.addEventListener("keydown", (e) => {
+    if (e.target !== knob) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); turnKnob(1); }
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); turnKnob(-1); }
+    else if ((e.key === "Enter" || e.key === " ") && !e.repeat && !pushing && interact()) {
+      e.preventDefault();
+      pushing = true;
+      $("cc-push").classList.add("down");
+      M._s32_wasm_button(0, 1);
+    }
+  });
+  knob.addEventListener("keyup", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && pushing) {
+      pushing = false;
+      $("cc-push").classList.remove("down");
+      M._s32_wasm_button(0, 0);
+    }
+  });
+}
+
+/* ---- The switch panel ---- */
+
+const TOGGLE_SVG = '<svg viewBox="0 0 44 72" aria-hidden="true">' +
+  '<circle cx="22" cy="36" r="15.5" fill="#141517" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+  '<polygon points="33,36 27.5,45.53 16.5,45.53 11,36 16.5,26.47 27.5,26.47" fill="url(#g-nut)" stroke="#0b0b0c" stroke-width="0.8"/>' +
+  '<circle cx="22" cy="36" r="6.2" fill="url(#g-bush)" stroke="#0b0b0c" stroke-width="0.6"/>' +
+  '<g class="lever"><path d="M19.8 36 L17.6 10 Q22 6.2 26.4 10 L24.2 36 Z" fill="url(#g-bat)" stroke="#3a3b3f" stroke-width="0.5"/>' +
+  '<ellipse cx="22" cy="9.6" rx="4.9" ry="3.6" fill="url(#g-tip)" stroke="#4a4b4f" stroke-width="0.5"/></g></svg>';
+
+function buildSwitches() {
+  for (const el of document.querySelectorAll(".tog")) {
+    el.innerHTML = TOGGLE_SVG + (el.id === "sw-select" ? "" : `<span class="tog-n">${el.id.slice(-1)}</span>`);
+    el.addEventListener("click", () => {
+      if (!interact()) return;
+      if (el.id === "sw-select") setControl("sel-ecu-select", ecuSelect() === "1" ? "2" : "1");
+      else setControl(el.dataset.ctl, !bench[el.dataset.ctl]);
+    });
+  }
+  const thr = $("throttle");
+  thr.addEventListener("input", () => {
+    if (!interact()) { showControls(); return; }
+    setThrottle(Number(thr.value));
+  });
+  const marks = $("thr-marks");
+  THROTTLE_MARKS.forEach(([name, pct], i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "thr-mark" + (i === 0 ? " first" : i === THROTTLE_MARKS.length - 1 ? " last" : "");
+    b.id = "thr-" + name.toLowerCase().replace(/[^a-z]/g, "");
+    b.style.left = pct + "%";
+    b.textContent = name;
+    b.title = `Throttle to ${name}`;
+    b.addEventListener("click", () => { if (interact()) setThrottle(pct); });
+    marks.append(b);
+  });
+  $("cc-chord").addEventListener("click", () => { if (interact()) M._s32_wasm_button_pulse(0b1100, 1500); });
+}
+
+/* ---- Scenarios and the steps for the pilot ---- */
+
+let current = null;     // the scenario on show
+let stepIdx = 0;
+
+function setSpeed(s) {
+  simSpeed = s;
+  lastFrameWall = performance.now();
+  showState();
+}
+
+// The screen overlay and the Start buttons: setting up, waiting to start, or running.
+function showState() {
+  const busy = scenarios.busy();
+  const waiting = !busy && booted && simSpeed === 0 && window.S32_SCENARIO && window.S32_SCENARIO.state === "done";
+  $("cc-over").hidden = !(busy || waiting);
+  $("cc-over-text").textContent = busy ? "Setting up…" : waiting ? (current ? current.title : "") : "";
+  $("cc-start").hidden = !waiting;
+  $("scn-start").hidden = !waiting;
+  $("step-next").hidden = waiting || busy || !current || stepIdx >= (current.pilot || []).length;
+  $("step-act").disabled = busy;
+  $("scn-restart").disabled = busy || !current;
+  if (noteKind === "paused" && simSpeed > 0) note("");
+}
+
+let noteKind = "";
+function note(text, kind = "") {
+  noteKind = kind;
+  $("scn-note").textContent = text;
+}
+
+function showScenario() {
+  const pick = $("scn-pick");
+  pick.value = current ? current.id : "";
+  $("scn-shows").textContent = current ? current.shows || current.description : "Choose a scenario above.";
+  const guide = $("scn-guide");
+  guide.hidden = !(current && current.guide);
+  if (current && current.guide) guide.href = current.guide;
+  $("bench-link").href = "index.html" + (current ? "?scenario=" + encodeURIComponent(current.id) : "");
+  showStep();
+}
+
+function showStep() {
+  const steps = (current && current.pilot) || [];
+  const act = $("step-act");
+  if (!current) {
+    $("step-n").textContent = " ";
+    $("step-say").textContent = "Choose a scenario.";
+    $("step-watch").textContent = "";
+    act.hidden = true;
+  } else if (stepIdx < steps.length) {
+    const st = steps[stepIdx];
+    $("step-n").textContent = `${current.title} · Step ${stepIdx + 1} of ${steps.length}`;
+    $("step-say").textContent = st.say;
+    $("step-watch").textContent = st.watch;
+    act.hidden = !st.act;
+    act.textContent = st.act || "";
+    $("step-next").textContent = stepIdx === steps.length - 1 ? "Finish" : "Next";
+  } else {
+    $("step-n").textContent = `${current.title} · Done`;
+    $("step-say").textContent = "That is the whole scenario.";
+    $("step-watch").textContent = "Pick another one, or press Restart to go through it again.";
+    act.hidden = true;
+  }
+  showState();
+}
+
+const NOTES = {
+  unknown: (sc) => `No scenario named "${sc.id}". The emulator runs normally.`,
+  "no-firmware": () => "No firmware is loaded. The bench page below takes your own files.",
+  setup: (sc) => `Setting up ${sc.title}…`,
+  paused: () => "Ready. Press Start.",
+  running: () => "",
+  error: (sc, e) => `${sc.title}: ${e && e.message}`,
+};
+
+const scenarios = s32ScenarioRunner({
+  M: () => M,
+  booted: () => booted,
+  reboot,
+  draw: () => renderLcdFrame(M._s32_wasm_render_rgba()),
+  refresh,
+  resetControls(blank) {
+    Object.assign(bench, BENCH_DEFAULTS);
+    bench["sl-rpm"] = 0;                 // the panel powers up with the engine stopped
+    if (blank) cylinders = 4;            // the stock firmware's default configuration
+    showControls();
+  },
+  actions: {
+    preset: (name) => ({ cruise: () => setEngine(2400, 24.0, 55), takeoff: () => setEngine(2700, 29.0, 100) })[name](),
+    rpm: (rpm) => setEngine(rpm),
+    set: setControl,
+  },
+  setSpeed,
+  note(kind, sc, err) {
+    note(NOTES[kind](sc, err), kind);
+    showState();
+  },
+  started(sc) {
+    current = sc;
+    stepIdx = 0;
+    showScenario();
+  },
+  finished() {
+    showStep();
+  },
+});
+
+async function runScenario(id, keepRunning) {
+  const run = scenarios.run(id, keepRunning);
+  showState();
+  await run;
+  showState();
+}
+
+function pickScenario(id) {
+  const u = new URL(location.href);
+  u.searchParams.set("scenario", id);
+  u.searchParams.delete("autostart");
+  history.replaceState(null, "", u);
+  runScenario(id, true);
+}
+
+function buildScenarioBar() {
+  const pick = $("scn-pick");
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "Choose a scenario";
+  none.disabled = true;
+  pick.append(none);
+  for (const sc of SCENARIOS) {
+    const o = document.createElement("option");
+    o.value = sc.id;
+    o.textContent = sc.title;
+    pick.append(o);
+  }
+  pick.value = "";
+  pick.addEventListener("change", () => pickScenario(pick.value));
+  $("step-next").addEventListener("click", () => {
+    stepIdx++;
+    showStep();
+  });
+  $("step-act").addEventListener("click", async () => {
+    const st = current && current.pilot && current.pilot[stepIdx];
+    if (!st || !st.do || !interact()) return;
+    const run = scenarios.act(st.do);
+    showState();
+    await run;
+    showState();
+  });
+  $("scn-restart").addEventListener("click", () => { if (current) runScenario(current.id, true); });
+  for (const id of ["scn-start", "cc-start"]) $(id).addEventListener("click", () => { if (booted) setSpeed(1); });
+}
+
+/* ---- The run loop and start-up ---- */
+
+function tick() {
+  const now = performance.now();
+  const dtMs = Math.min(50, Math.max(1, now - lastFrameWall));
+  lastFrameWall = now;
+  if (M && booted && simSpeed > 0 && !scenarios.busy()) {
+    M._s32_wasm_step_quanta(Math.round(dtMs * 10));
+    renderLcdFrame(M._s32_wasm_render_rgba());
+    if (++frameCounter % 6 === 0) refresh();
+  }
+  requestAnimationFrame(tick);
+}
+
+// The default firmware (firmware/manifest.json, each file checked against its SHA-256), then its first power-up on
+// blank configuration chips (2 s: the firmware writes its default settings) and one power cycle, as on the bench page.
+async function loadDefaultFirmware() {
+  const fw = await s32FetchDefaultFirmware();
+  if (!fw) return false;
+  for (const f of fw.files) s32LoadFile(M, f.name, new Uint8Array(await f.arrayBuffer()));
+  $("fw-label").textContent = `The emulator runs ${fw.label} firmware for the Controller and both ECUs in your browser.`;
+  reboot();
+  if (!booted) return false;
+  if (M._s32_wasm_step_quanta(20000) === 0) reboot();
+  return booted;
+}
+
+buildFace();
+buildControls();
+buildSwitches();
+buildScenarioBar();
+showControls();
+showScenario();
+$("step-say").textContent = "Loading the emulator…";
+
+createS32Module().then(async (mod) => {
+  M = mod;
+  requestAnimationFrame(tick);
+  const id = QUERY.get("scenario");
+  let ok = false;
+  try {
+    ok = await loadDefaultFirmware();
+  } catch (e) {
+    note("Default firmware refused: " + e.message + ".");
+    window.S32_SCENARIO = { id, state: "no-firmware" };
+    return;
+  }
+  if (!ok) {
+    note(NOTES["no-firmware"]());
+    $("step-say").textContent = "No firmware is loaded.";
+    window.S32_SCENARIO = { id, state: "no-firmware" };
+    return;
+  }
+  if (!M._s32_wasm_have_ct()) $("cc-over-text").textContent = "No Controller image is loaded.";
+  if (id !== null) {
+    await runScenario(id, QUERY.get("autostart") === "1");
+    if (window.S32_SCENARIO.state === "unknown") {
+      setSpeed(1);
+      showScenario();
+    }
+  } else {
+    await runScenario("runup", true);   // no scenario named: start at the run-up
+  }
+});
+</script>
+</body>
+</html>
