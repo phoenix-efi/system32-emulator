@@ -70,6 +70,13 @@ static bool enable_grounded(const s32board *b, int k) {   /* Drawing 9: the ECU 
   if (b->sw_legacy) return b->inj_gnd[k];
   return b->select == 3 || (b->select == 1 && k == 1) || (b->select == 2 && k == 0);
 }
+/* From the ECU Select switch to wires set per ECU (S32_SWITCHES, a timed inj= move, the bench page's switches): each
+ * wire starts from the state the select switch left it in, so a wire that is not moved keeps what the pins see. */
+static void wires_from_select(s32board *b) {
+  if (b->sw_legacy) return;
+  for (int k = 0; k < 2; k++) b->inj_gnd[k] = enable_grounded(b, k);
+  b->sw_legacy = true;
+}
 
 /* ---------------------------------------------------------------- init */
 void s32board_init(s32board *b, s32board_host host) {
@@ -947,7 +954,7 @@ void s32board_set_an(s32board *b, int who, unsigned ch, uint16_t raw) {
 }
 void s32board_set_switches(s32board *b, int k, bool plead_open, bool inj_open) {
   if (k < 0 || k > 1) return;
-  b->sw_legacy = true;
+  wires_from_select(b);
   if (b->plead_stop[k] != !plead_open) { b->plead_stop[k] = !plead_open; contact(b, b->now, SB_E1 + k, E_PLEAD, plead_open, true); }
   if (b->inj_gnd[k] != !inj_open) { b->inj_gnd[k] = !inj_open; contact(b, b->now, SB_E1 + k, E_INJ, inj_open, true); }
 }
@@ -1009,7 +1016,7 @@ static void event(s32board *b, sb_ev *e) {
   switch (e->kind) {
   case EV_CONTACT: b->lvl[e->who][e->port] = (uint16_t)((b->lvl[e->who][e->port] & ~(1u << e->bit)) | ((unsigned)e->level << e->bit)); break;
   case EV_PLEAD: b->plead_stop[e->a] = e->level; contact(b, e->t, SB_E1 + (int)e->a, E_PLEAD, !e->level, true); break;
-  case EV_INJ: b->sw_legacy = true; b->inj_gnd[e->a] = e->level; contact(b, e->t, SB_E1 + (int)e->a, E_INJ, !e->level, true); break;
+  case EV_INJ: wires_from_select(b); b->inj_gnd[e->a] = e->level; contact(b, e->t, SB_E1 + (int)e->a, E_INJ, !e->level, true); break;
   case EV_SELECT: {                                         /* break before make: both wires open while in transit */
     b->sw_legacy = false;
     int to = (int)e->a;

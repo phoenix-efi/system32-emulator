@@ -607,6 +607,18 @@ void s32_wasm_set_tps_fault(int ecu_idx, int raw, int noise) {
   (void)s32board_knob(&B, "S32_TPS_FAULT", v);
 }
 
+/* One ECU's analogue input from now on: a wire fault (an S32_AN_FAULT mode such as open, gnd or vcc), or back to its
+ * sensor (mode NULL or empty). Returns 0, or < 0 with s32_wasm_knob_error() saying why. */
+EMSCRIPTEN_KEEPALIVE
+int s32_wasm_set_an_fault(int ecu_idx, int ch, const char *mode) {
+  if (ecu_idx < 0 || ecu_idx >= 2 || ch < 0 || ch >= 32) return -1;
+  s32board_an_fault_clear(&B, SB_E1 + ecu_idx, (unsigned)ch);
+  if (!mode || !*mode) return 0;
+  char v[96];
+  snprintf(v, sizeof v, "%d:%d=%.40s@%.4f", ecu_idx + 1, ch, mode, B.now);
+  return s32board_knob(&B, "S32_AN_FAULT", v);
+}
+
 /* The sensors as the pilot's instruments would read them; each reaches the pins through its transfer curve (the
  * lines below, fitted to the readings the stock firmware displays) and the harness wiring (ET on ECU1 only;
  * batteries on the ECU feeds and on the Controller's DB-15 senses). */

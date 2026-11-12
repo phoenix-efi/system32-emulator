@@ -109,6 +109,8 @@ const FW_CHECKS = [
   "A knob that passes the RTC-less validation board but fails on the real board fails the boot, naming the knob",
   "A >4096-byte pre-boot knob value is kept whole and applied at boot (the native front end has no length limit either)",
   "Boot again after the Controller has run (the page's power cycle after the first power-up) does not trap",
+  "ECU Select on ECU 2 by the page's switches (ECU 1's enable wire grounded, ECU 2's open): ECU 2 alone fuels",
+  "ECU 1 MAP input disconnected from the page: ECU 1 reports a low MAP, ECU 2 its sensor; cleared, both read it again",
 ];
 
 const fwDir = process.env.S32_FIRMWARE_DIR;
@@ -280,6 +282,27 @@ const tC = JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json()));
 check(FW_CHECKS[16], rcK === 0 && tC.ecu[0].coils[0].sparks === tB.ecu[0].coils[0].sparks &&
       tC.ecu[1].coils[0].sparks > tB.ecu[1].coils[0].sparks,
       `ECU1 sparks ${tB.ecu[0].coils[0].sparks} -> ${tC.ecu[0].coils[0].sparks}, ECU2 ${tB.ecu[1].coils[0].sparks} -> ${tC.ecu[1].coils[0].sparks}`);
+
+// The page's Fuel Injectors Enable switches after a boot: ECU 2's wire must open when asked (after a boot the select
+// switch's default position, ECU 1, has it grounded).
+rebootRunning();
+M._s32_wasm_set_switches(0, 1, 0, 0, 1);
+M._s32_wasm_set_switches(1, 1, 1, 0, 1);
+M._s32_wasm_step_quanta(30000);
+const tSel = JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json()));
+check(FW_CHECKS[20], tSel.fuel_gph > 5.0 && tSel.afr < 13.0, `fuel ${tSel.fuel_gph.toFixed(2)} GPH, AFR ${tSel.afr.toFixed(2)}`);
+
+rebootRunning();
+const anFault = (mode) => M.ccall("s32_wasm_set_an_fault", "number", ["number", "number", "string"], [0, 5, mode]);
+const rcOpen = anFault("open");
+M._s32_wasm_step_quanta(30000);
+const mapOpen = JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json())).link.map((l) => l.map_inhg);
+const rcClear = anFault("");
+M._s32_wasm_step_quanta(30000);
+const mapBack = JSON.parse(M.UTF8ToString(M._s32_wasm_get_telemetry_json())).link.map((l) => l.map_inhg);
+check(FW_CHECKS[21], rcOpen === 0 && rcClear === 0 && mapOpen[0] < 10 && Math.abs(mapOpen[1] - 24.0) < 0.2 &&
+      Math.abs(mapBack[0] - 24.0) < 0.2 && Math.abs(mapBack[1] - 24.0) < 0.2,
+      `MAP ECU1/ECU2 ${mapOpen.join("/")} inHg disconnected, ${mapBack.join("/")} inHg cleared`);
 
 // ---- pre-boot knob storage, on firmware that can boot ------------------------------------------------------------
 // A knob the scratch validation board cannot judge (it has no RTC) but the real board refuses must fail the boot,
