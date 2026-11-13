@@ -4,8 +4,8 @@
 
     scripts/make_dist.py --version V [--out dist]
 
-writes dist/system32-emulator-wasm-V.tar.gz holding s32_wasm.js, s32_wasm.wasm, index.html (the bench page),
-cockpit.html (the cockpit page), s32_bench.js (the script both pages load), firmware-manifest.json
+writes dist/system32-emulator-wasm-V.tar.gz holding s32_wasm.js, s32_wasm.wasm, cockpit.html (the page), s32_bench.js
+(the bench it runs), index.html (opens cockpit.html with its Advanced section open), firmware-manifest.json
 (firmware/manifest.json: names, sizes, SHA-256 and release URLs of the default firmware, which is NOT in the bundle) and
 SHA256SUMS, plus the same SHA256SUMS next to the archive. The archive is reproducible: fixed member order, mtime 0,
 owner 0. Any image-like file in the bundle (.bin .hex .flat .fram .img) fails the run.

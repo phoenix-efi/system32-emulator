@@ -7,9 +7,9 @@
 #   make check-nofw     the same without any firmware (the firmware cases are not run)
 #   make firmware       fetch and verify the default firmware into .firmware-cache/v86 (S32_V86_SRC=<dir> for a
 #                       local copy of the update files instead of the release assets)
-#   make bench-site     the browser bench and cockpit pages with their default firmware in build/bench-site
-#                       (make serve-bench serves it)
-#   make bench-scenarios  the scenarios (?scenario=<id>) on the bench and cockpit pages in headless Chromium on that site
+#   make bench-site     the browser page (cockpit.html, index.html opens it) with its default firmware in
+#                       build/bench-site (make serve-bench serves it)
+#   make bench-scenarios  the page, its presets (?scenario=<id>) and their steps in headless Chromium on that site
 #   make dist           the versioned WebAssembly bundle for other sites (dist/, scripts/make_dist.py)
 
 .PHONY: all emu test test-c test-scripts wasm-emcc wasm wasm-test wasm-host-test firmware conformance-synthetic \
@@ -90,8 +90,8 @@ BENCH_ARGS ?=
 bench: wasm
 	python3 scripts/bench.py --firmware-dir "$(FW_DIR)" $(BENCH_ARGS)
 
-# The bench page (index.html) and the cockpit page (cockpit.html) with the default firmware next to them
-# (firmware/manifest.json; each page checks each file's SHA-256 before it loads anything). build/bench-site is
+# The page (cockpit.html, s32_bench.js; index.html opens it) with the default firmware next to it
+# (firmware/manifest.json; the page checks each file's SHA-256 before it loads anything). build/bench-site is
 # git-ignored and is never published from here: the firmware files are release assets with their own licence
 # (firmware/LICENSE-FIRMWARE).
 BENCH_SITE := build/bench-site
@@ -104,15 +104,14 @@ SERVE_PORT ?= 8787
 serve-bench: bench-site
 	python3 -m http.server $(SERVE_PORT) --bind 127.0.0.1 --directory $(BENCH_SITE)
 
-# The scenarios (?scenario=<id>, scripts/bench_scenarios.py) on the bench and cockpit pages in headless Chromium
-# (Playwright from uv.lock): each one sets up without a JavaScript error and reaches the state it describes, and each
-# pilot step on the cockpit page shows what it says. Not part of make check.
-# SCENARIO_ARGS adds options (--shots DIR, --only id,id).
+# The page and its presets (?scenario=<id>, scripts/bench_scenarios.py) in headless Chromium (Playwright from uv.lock):
+# the default state, each preset from the list and from its link, its steps, Advanced. Not part of make check.
+# SCENARIO_ARGS adds options (--shots DIR, --only id,id, --pages bench,cockpit).
 SCENARIO_ARGS ?=
 bench-scenarios: bench-site
 	$(PYRUN) -I scripts/bench_scenarios.py --site $(BENCH_SITE) $(SCENARIO_ARGS)
 
-# The versioned WebAssembly bundle a site embeds: the module, the bench and cockpit pages, the firmware
+# The versioned WebAssembly bundle a site embeds: the module, the page, the firmware
 # manifest (no firmware) and a SHA-256 list. VERSION defaults to `git describe`.
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
 dist: wasm

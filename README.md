@@ -84,7 +84,7 @@ power-up on a blank chip) and checks each of those against the manifest too.
 | `emu/ecu` | the ECU (PIC32MX peripherals) on the C11 MIPS32 shim (`emu/ecu/shim`) |
 | `emu/common` | harness and engine model, link decoder, FRAM layout, trace, panel, snapshots |
 | `emu/pair` | the native front end (`s32pair`): Controller + two ECUs, 100-us quanta |
-| `emu/wasm` | the WebAssembly builds and the browser bench page (`emu/wasm/web/index.html`) |
+| `emu/wasm` | the WebAssembly builds and the browser page (`emu/wasm/web/cockpit.html`, `s32_bench.js`) |
 | `model/` | SFR and pin models generated from Microchip's public DFPs; the I/O ledger |
 | `scripts/` | conformance, bench, case preparation, SD card images, generators, firmware fetch |
 | `tests/` | conformance cases, benchmark scenarios, tooling tests |

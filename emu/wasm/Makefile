@@ -69,7 +69,7 @@ $(B)/build_id: FORCE | $(B)
 $(B)/s32pair_node.js: $(PAIR_SRC) ../common/s32board.h ../common/s32trace.h ../common/s32panel.h ../common/s32snap.h node/env_pre.js $(B)/sfr_headers $(B)/build_id | $(B)
 	$(EMCC) $(PAIR_FLAGS) -DS32_BUILD_ID='"$(shell cat $(B)/build_id)-node"' $(PAIR_SRC) -o $@
 
-# The pages: the bench (index.html), the cockpit view (cockpit.html) and the script they share (s32_bench.js).
+# The page (cockpit.html), the bench it runs (s32_bench.js), and index.html, which opens cockpit.html with Advanced open.
 $(B)/index.html $(B)/cockpit.html $(B)/s32_bench.js: $(B)/%: web/% | $(B)
 	cp web/$* $@
 

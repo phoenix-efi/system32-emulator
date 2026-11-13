@@ -19,7 +19,7 @@ each checked against the manifest too. The cache (default .firmware-cache/v86, g
 directory for the native front end and the conformance gate: S32_FIRMWARE_DIR=.firmware-cache/v86.
 
 --bench-dir DIR also writes the browser bench's default firmware: the two update files and the manifest.json the page
-fetches and checks (emu/wasm/web/index.html loadDefaultFirmware). Prints the firmware directory on the last line.
+fetches and checks (emu/wasm/web/s32_bench.js s32FetchDefaultFirmware). Prints the firmware directory on the last line.
 Exit status: 0 ready, 1 refused or failed, 2 usage error. Standard library only.
 """
 from __future__ import annotations

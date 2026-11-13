@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""The scenarios (?scenario=<id>) on the bench page (emu/wasm/web/index.html) and the cockpit page (cockpit.html) in
-headless Chromium.
+"""The emulator page (emu/wasm/web/cockpit.html: the cockpit, and below it the Advanced section with every bench
+control) and its scenarios (?scenario=<id>) in headless Chromium.
 
-    scripts/pyrun -I scripts/bench_scenarios.py [--site build/bench-site] [--pages index,cockpit] [--shots DIR]
+    scripts/pyrun -I scripts/bench_scenarios.py [--site build/bench-site] [--pages bench,cockpit] [--shots DIR]
                                                 [--only id,id]
 
-Serves the bench site that `make bench-site` builds (the pages, their module and the default firmware) from a private
-local server, opens each page once per scenario with ?scenario=<id> and checks that the page raised no JavaScript
-error, that the scenario finished setting up and that the bench is in the state the scenario describes: engine speed,
-fuel trim and MAP as both ECUs report them on the link, sparks per ECU, the bench's AFR, and the colour of the ECU and
-pump tabs on the Controller's home page (read from the panel's pixels).
+Serves the bench site that `make bench-site` builds (the page, its module and the default firmware) from a private
+local server, opens the page once per scenario and checks that it raised no JavaScript error, that the scenario
+finished setting up and runs, and that the emulator is in the state the scenario describes: engine speed, fuel trim
+and MAP as both ECUs report them on the link, sparks per ECU, the bench's AFR, and the colour of the ECU and pump tabs
+on the Controller's home page (read from the panel's pixels).
 
-On the bench page it also checks an unknown id (a notice, the bench runs normally), autostart=1 (the bench keeps
-running), picking a scenario from the list, the follow-up each description promises, and that the page's controls
-start at BENCH_DEFAULTS (s32_bench.js), the values the cockpit page drives.
+bench: with the engine model off (?engine=off), as the bench page had it: every scenario's state and the follow-up its
+description promises, an unknown id, a pick from the scenario list (the RPM limit setting put back), and index.html,
+which opens the page with Advanced open.
 
-On the cockpit page, where an engine model sets RPM and MAP from the throttle and prop levers and the sparks, it also
-checks that the switches, the levers and the RPM readout show the bench's state, then goes through every step for the
-pilot: shows its text, does what it says with the page's own controls (switches, buttons, knob, levers, the step's
-action button) and checks what its "watch" line says: which screen the Controller shows and the tab colors (read from
-the panel's pixels), RPM, MAP, trim and AFR from the link, and the sparks per ECU from the bench. For rpm-limit: the
-RPM peak at the 2750 RPM limit, a spark cut there, and 2700 RPM held from 3.5 s on. Then an unknown id, ?embed=1 (only
-the Controller and the switches, transparent background) and a 390 px wide phone (no sideways scrolling).
+cockpit: with the engine model on (the levers, the STARTER and the sparks set RPM and MAP): every scenario's state;
+that each drawn switch shows the bench's control (after setup and after Restart) and starts where the scenario puts
+it; every checklist step, done with the page's own controls and checked against its "watch" line (screens and tabs
+from the panel's pixels, RPM, MAP, trim and AFR from the link, sparks from the bench; for rpm-limit the peak at the
+2750 RPM limit, a spark cut there and 2700 RPM held from 3.5 s on); that the throttle then moves RPM or MAP; Advanced
+controls acting on the same emulator; an unknown id, ?embed=1 and a 390 px phone.
 
-With --shots, saves screenshots: on the bench page the page and the panel for every scenario; on the cockpit page
-runup, ecu-silent, ecu-select and trim-lop at 1440 and 390 px wide, rpm-limit at 1440, runup in the dark theme
-too, the embed, and the Controller alone. Exit 0 when every check passes, 1 otherwise.
+With --shots, saves screenshots of the cockpit: the default page at 1440 and 390 px wide (and dark), first-start after
+the engine start, rpm-limit, the embed, the Controller alone and the page with Advanced open; with bench, the page and
+the panel for every scenario. Exit 0 when every check passes, 1 otherwise.
 """
 from __future__ import annotations
 
@@ -142,9 +141,19 @@ SCREEN_JS = """
 }
 """
 
-# The cockpit page's own view of the bench: switch positions, levers, RPM readout, the step shown.
+# The cockpit's own view: switch positions, levers, RPM readout, the step shown; and where a drawn switch differs
+# from the bench control it stands for.
 COCKPIT_JS = """
 () => ({
+  differ: (() => {
+    const c = (id) => document.getElementById(id), d = [];
+    if (c("sw-ign1").getAttribute("aria-checked") !== String(c("sw-e1-pld").checked)) d.push("ign1");
+    if (c("sw-ign2").getAttribute("aria-checked") !== String(c("sw-e2-pld").checked)) d.push("ign2");
+    if (c("sw-select").dataset.value !== c("sel-ecu-select").value) d.push("select");
+    const pump = c("sw-pump1").checked && !c("sw-pump2").checked ? "1" : c("sw-pump2").checked && !c("sw-pump1").checked ? "2" : "?";
+    if (c("sw-pump").dataset.value !== pump) d.push("pump");
+    return d;
+  })(),
   ign1: document.getElementById("sw-ign1").getAttribute("aria-checked"),
   ign2: document.getElementById("sw-ign2").getAttribute("aria-checked"),
   pump: document.getElementById("sw-pump").dataset.value,
@@ -156,27 +165,9 @@ COCKPIT_JS = """
   step_n: document.getElementById("step-n").textContent,
   say: document.getElementById("step-say").textContent,
   watch: document.getElementById("step-watch").textContent,
-  start: !document.getElementById("scn-start").hidden,
 })
 """
 
-# The bench page's controls against BENCH_DEFAULTS: the ids whose default value on index.html differs, and the ids a
-# scenario resets on index.html that BENCH_DEFAULTS lacks (or the other way round).
-DEFAULTS_JS = """
-() => {
-  const differ = Object.entries(BENCH_DEFAULTS).filter(([id, v]) => {
-    const el = document.getElementById(id);
-    if (!el) return true;
-    const d = el.type === "checkbox" ? el.defaultChecked
-            : el.tagName === "SELECT" ? (Array.from(el.options).find((o) => o.defaultSelected) || el.options[0]).value
-            : Number(el.defaultValue);
-    return d !== v;
-  }).map(([id]) => id);
-  const keys = Object.keys(BENCH_DEFAULTS);
-  const unmatched = SCENARIO_CONTROLS.filter((id) => !keys.includes(id)).concat(keys.filter((id) => !SCENARIO_CONTROLS.includes(id)));
-  return { differ, unmatched };
-}
-"""
 
 
 def rpm_in(r: dict, lo: int, hi: int) -> list[tuple[bool, str]]:
@@ -219,13 +210,17 @@ def map_near(r: dict, k: int, want: float, tol: float) -> list[tuple[bool, str]]
 # readout after the step, s.a = 1.5 s earlier, s.r0 = before the step, s.samples = engine RPM, link RPM and sparks
 # every 0.1 s between them, s.scr = the Controller's screen, s.c = the page's own view.
 GAUGES = {"kind": "gauges"}
-CRUISE_THROTTLE = "throttleFor(24.0, 2400) * 100"
+# The throttle that gives 24 inHg with the prop forward (the blades on the stop: the RPM is the throttle's).
+MAP24_PROP_FORWARD = ("(() => { let lo = 0, hi = 1; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2;"
+                      " if (manifold(m, powerRpm(m)) < 24) lo = m; else hi = m; } return lo * 100; })()")
 PILOT = {
     "first-start": [
         (None, lambda s: tabs(s.b, ecu1="red", ecu2="red") + rpm_is(s.b, 0, 0) + firing(s.a, s.b, (False, False))),
         (("press", 1, 1), lambda s: screen_is(s.scr, kind="menu", title="main", list=True)),
         (("press", 3, 1), lambda s: screen_is(s.scr, **GAUGES)),
         (("act",), lambda s: tabs(s.b, ecu1="blue", ecu2="green")),
+        (("starter", 2.0), lambda s: rpm_in(s.b, 720, 780) + idle_firing(s.a, s.b)),
+        (("lever", "throttle", 25), lambda s: rpm_is(s.b, 1800)),
     ],
     "runup": [
         (("flip", "sw-ign1"), lambda s: rpm_in(s.b, 1680, 1730) + tabs(s.b, ecu1="red") + firing(s.a, s.b, (False, True))),
@@ -249,7 +244,7 @@ PILOT = {
         (("press", 3, 1), lambda s: screen_is(s.scr, **GAUGES)),
         (("press", 2, 1), lambda s: screen_is(s.scr, kind="menu", title="tuning", list=True) + rpm_is(s.b, 2700)),
         (("press", 3, 1), lambda s: screen_is(s.scr, **GAUGES)),
-        (("lever", "throttle", CRUISE_THROTTLE), lambda s: map_near(s.b, 0, 24.0, 0.3) + rpm_in(s.b, 2500, 2600)),
+        (("lever", "throttle", MAP24_PROP_FORWARD), lambda s: map_near(s.b, 0, 24.0, 0.3) + rpm_in(s.b, 2550, 2650)),
         (("lever", "prop", "propFor(2400) * 100"), lambda s: rpm_is(s.b, 2400)),
     ],
     "ecu-silent": [
@@ -280,15 +275,17 @@ PILOT = {
 # The cockpit page's switches and levers (throttle %, prop %) once a scenario is set up; cruise: the prop at 2400 RPM,
 # the throttle at 24 inHg.
 SWITCHES = {"ign1": "true", "ign2": "true", "pump": "1", "select": "1"}
-LEVERS = {"first-start": (0, 100), "runup": (25, 100), "takeoff": (100, 100), "rpm-limit": (25, 100)}
+LEVERS = {"default": (0, 100), "first-start": (0, 100), "runup": (25, 100), "takeoff": (100, 100), "rpm-limit": (25, 100)}
 CRUISE_LEVERS = (54.9, 57.1)
 
 
 def switches_show(sid: str, c: dict, r: dict) -> list[tuple[bool, str]]:
     want = dict(SWITCHES, select="2" if sid == "ecu-select" else "1")
     got = {k: c[k] for k in want}
+    if c["differ"]:
+        return [(False, f"drawn switches that differ from the bench: {c['differ']}")]
     thr, prop = LEVERS.get(sid, CRUISE_LEVERS)
-    out = [(got == want, f"switches {got} (want {want})"),
+    out = [(True, "drawn switches match the bench"), (got == want, f"switches {got} (want {want})"),
            (near(c["throttle"], thr, 0.6) and near(c["prop"], prop, 0.6),
             f"throttle {c['throttle']} %, prop {c['prop']} % (want {thr}, {prop})")]
     out.append((near(int(c["rpm"]), r["rpm"][0], 20), f"RPM readout {c['rpm']} (link {r['rpm']})"))
@@ -307,6 +304,25 @@ def samples(pg, n: int) -> list:
 EXPECT_COCKPIT = {
     "rpm-limit": lambda pg, a, b: rpm_in(b, 2020, 2060) + firing(a, b, (True, True)),   # run-up on a fine stop
 }
+
+
+def idle_firing(a: dict, b: dict) -> list[tuple[bool, str]]:
+    """Both ECUs firing at idle: 750 RPM is 12.5 sparks a second on each first coil."""
+    n = [b["sparks"][k] - a["sparks"][k] for k in (0, 1)]
+    return [(min(n) >= 8, f"{n} sparks in 1 s at idle (want firing, 12.5 a second)")]
+
+
+def throttle_moves(pg, readout) -> list[tuple[bool, str]]:
+    """The throttle moves the engine: RPM below the governed speed, MAP above it (ECU 2's MAP: ECU 1's may be failed)."""
+    a = readout()
+    thr = pg.evaluate("eng.throttle * 100")
+    to = thr - 20 if thr >= 20 else thr + 20
+    pg.evaluate(f"interact(), setLever('throttle', {to})")
+    pg.evaluate("runBench(3)")
+    b = readout()
+    d_rpm, d_map = abs(b["rpm"][1] - a["rpm"][1]), abs(b["map"][1] - a["map"][1])
+    return [(d_rpm >= 100 or d_map >= 1.0, f"throttle {thr:.0f} -> {to:.0f} %: RPM {a['rpm'][1]} -> {b['rpm'][1]}, "
+                                           f"MAP {a['map'][1]} -> {b['map'][1]}")]
 
 
 class Step:
@@ -338,6 +354,10 @@ def do_step(pg, action, readout, opts: dict | None = None) -> Step:
             pg.keyboard.press("End")
         else:
             pg.evaluate(f"interact(), setLever({action[1]!r}, {action[2]})")
+    elif action[0] == "starter":           # hold the STARTER this long (emulated time), then let go
+        pg.dispatch_event("#starter", "pointerdown", {"button": 0, "pointerId": 1})
+        pg.evaluate(f"runBench({action[1]})")
+        pg.dispatch_event("#starter", "pointerup", {"button": 0, "pointerId": 1})
     elif action[0] == "act":
         pg.click("#step-act")
         pg.wait_for_function("!scenarios.busy()", timeout=120_000)
@@ -372,10 +392,10 @@ def follow_up(pg, sid: str, readout) -> list[tuple[bool, str]]:
     return []
 
 
-def index_page(open_page, check, only, shots) -> None:
-    """The bench page: an unknown id, every scenario, autostart=1, a pick from the list, the defaults."""
+def bench_page(open_page, check, only, shots) -> None:
+    """The bench (the engine model off): an unknown id, every scenario, a pick from the list, index.html."""
     # An unknown id: a notice, and the bench runs as without one.
-    pg, errors = open_page("index.html?scenario=no-such-scenario")
+    pg, errors = open_page("cockpit.html?engine=off&scenario=no-such-scenario")
     ids = pg.evaluate("SCENARIOS.map((s) => s.id)")
     state = pg.evaluate("window.S32_SCENARIO.state")
     note = pg.evaluate("document.getElementById('scn-note').textContent")
@@ -387,14 +407,10 @@ def index_page(open_page, check, only, shots) -> None:
                          (not errors, f"page errors {errors}")])
     check("scenario table", [(sorted(ids) == sorted(EXPECT), f"ids {ids} (checked here: {sorted(EXPECT)})"),
                              (sorted(ids) == sorted(PILOT), f"ids {ids} (pilot steps checked here: {sorted(PILOT)})")])
-    d = pg.evaluate(DEFAULTS_JS)
-    check("bench defaults", [(not d["differ"], f"controls whose default differs from BENCH_DEFAULTS: {d['differ']}"),
-                             (not d["unmatched"], f"controls in only one of SCENARIO_CONTROLS, BENCH_DEFAULTS: "
-                                                  f"{d['unmatched']}")])
     pg.close()
 
     for sid in only or ids:
-        pg, errors = open_page(f"index.html?scenario={sid}")
+        pg, errors = open_page(f"cockpit.html?engine=off&advanced=1&scenario={sid}")
         state = pg.evaluate("window.S32_SCENARIO")
         readout = functools.partial(pg.evaluate, READOUT_JS)
         a = readout()
@@ -405,24 +421,19 @@ def index_page(open_page, check, only, shots) -> None:
         if shots:
             pg.screenshot(path=str(shots / f"{sid}.png"), full_page=True)
             pg.locator("#lcd").screenshot(path=str(shots / f"{sid}-panel.png"))
-        check(sid, [(state.get("state") == "done", f"setup {state}"), (a["speed"] == 0, "paused after setup"),
+        check(sid, [(state.get("state") == "done", f"setup {state}"), (a["speed"] == 1, "running after setup"),
                     (not errors, f"page errors {errors}")] + EXPECT[sid](a, r) + follow_up(pg, sid, readout))
         pg.close()
 
-    # autostart=1 keeps the bench running; a pick from the list sets the bench up (fuel trim back to 0 %, the link
-    # switch back on, rpm-limit's RPM limit setting back to its value before) and the address bar.
-    pg, errors = open_page("index.html?scenario=trim-lop&autostart=1")
-    t0 = pg.evaluate("telemetry().time_s")
-    pg.wait_for_timeout(1500)
-    t1 = pg.evaluate("telemetry().time_s")
-    check("autostart=1", [(pg.evaluate("simSpeed") == 1 and t1 > t0 + 0.3, f"running ({t0:.2f} -> {t1:.2f} s)")])
-    for sid in ("rpm-limit", "ecu-silent"):
-        pg.click(f"#scn-{sid}")
+    # index.html opens the page with Advanced open, the query kept; a pick from the list sets the bench up (fuel trim
+    # back to 0 %, the link switch back on, rpm-limit's RPM limit setting back to its value before) and the address bar.
+    pg, errors = open_page("index.html?scenario=trim-lop&autostart=1&engine=off")
+    check("index.html", [("cockpit.html" in pg.url and "advanced=1" in pg.url and "scenario=trim-lop" in pg.url,
+                          f"address {pg.url}"), (pg.evaluate("document.getElementById('advanced').open"), "Advanced open")])
+    for sid in ("rpm-limit", "ecu-silent", "cruise"):
+        pg.select_option("#scn-pick", sid)
         pg.wait_for_function(f"window.S32_SCENARIO.id === '{sid}' && window.S32_SCENARIO.state !== 'running'",
                              timeout=300_000)
-    pg.click("#scn-cruise")
-    pg.wait_for_function("window.S32_SCENARIO.id === 'cruise' && window.S32_SCENARIO.state !== 'running'",
-                         timeout=300_000)
     r = pg.evaluate(READOUT_JS)
     slot7 = pg.evaluate("[1, 2].map((k) => { const p = M._s32_wasm_get_fram_ptr(k) + 0x1480 + 6 * 16; let s = '';"
                         " for (let i = 0; i < 16 && M.HEAPU8[p + i]; i++) s += String.fromCharCode(M.HEAPU8[p + i]);"
@@ -435,8 +446,96 @@ def index_page(open_page, check, only, shots) -> None:
     pg.close()
 
 
+def default_page(open_page, check, only, shots) -> None:
+    """The page as it opens: the default state, running; every preset loaded from the Presets list; Reset."""
+    pg, errors = open_page("cockpit.html")
+    readout = functools.partial(pg.evaluate, READOUT_JS)
+    panel = "[document.getElementById('steps').hidden, document.getElementById('steps-open').hidden, " \
+            "document.getElementById('scn-pick').value]"
+    a = readout()
+    pg.evaluate("runBench(1)")
+    b = readout()
+    c = pg.evaluate(COCKPIT_JS)
+    check("default", [(pg.evaluate("window.S32_SCENARIO") == {"id": "default", "state": "done"}, "default state set up"),
+                      (b["speed"] == 1, "running"), (pg.evaluate(panel) == [True, True, ""], "no preset, no steps")]
+          + rpm_in(b, 730, 770) + idle_firing(a, b) + tabs(b, ecu1="blue", ecu2="green", pmp1="green", pmp2="gray")
+          + switches_show("default", c, b) + throttle_moves(pg, readout))
+    for sid in only or list(PILOT):
+        pg.select_option("#scn-pick", sid)
+        pg.wait_for_function(f"window.S32_SCENARIO.id === '{sid}' && window.S32_SCENARIO.state !== 'running'",
+                             timeout=300_000)
+        a = readout()
+        pg.evaluate("runBench(1)")
+        b = readout()
+        expect = EXPECT_COCKPIT[sid](pg, a, b) if sid in EXPECT_COCKPIT else EXPECT[sid](a, b)
+        check(f"preset {sid}", [(pg.evaluate("window.S32_SCENARIO.state") == "done", "set up"),
+                                (b["speed"] == 1, "running"),
+                                (pg.evaluate(panel) == [True, False, sid], "steps closed, Steps button shown"),
+                                (f"scenario={sid}" in pg.url, f"address {pg.url}")]
+              + expect + switches_show(sid, pg.evaluate(COCKPIT_JS), b))
+    pg.click("#steps-open")
+    opened = pg.evaluate(panel)
+    pg.click("#reset")
+    pg.wait_for_function("window.S32_SCENARIO.id === 'default' && window.S32_SCENARIO.state === 'done' "
+                         "&& !scenarios.busy()", timeout=300_000)
+    pg.evaluate("runBench(1)")
+    b = readout()
+    check("reset", [(opened[0] is False, "Steps opens the steps panel"),
+                    (pg.evaluate(panel) == [True, True, ""], "Reset: no preset, no steps"),
+                    ("scenario=" not in pg.url, f"address {pg.url}"), (not errors, f"page errors {errors}")]
+          + rpm_in(b, 730, 770) + switches_show("default", pg.evaluate(COCKPIT_JS), b))
+    pg.close()
+
+
+def engine_samples(pg, n: int) -> list:
+    """The engine model's RPM and the bench's MAP every 0.1 s, n times."""
+    return [pg.evaluate("runBench(0.1), [Math.round(eng.rpm), +document.getElementById('sl-map').value]") for _ in range(n)]
+
+
+def engine_page(open_page, check) -> None:
+    """The engine model as a constant-speed propeller: the governor holds RPM while the throttle moves MAP; the prop
+    lever moves RPM (and MAP a little the other way); on the stop the throttle sets RPM smoothly."""
+    pg, errors = open_page("cockpit.html?scenario=cruise")
+    lever = lambda which, pct: pg.evaluate(f"interact(), setLever({which!r}, {pct})")
+    worst, settled, maps = 0, [], []
+    for pct in (40, 50, 60, 70, 80, 90, 100, 90, 80, 70, 60, 50, 40):
+        lever("throttle", pct)
+        ss = engine_samples(pg, 15)
+        worst = max(worst, max(abs(r - 2400) for r, _ in ss))
+        settled.append(ss[-1][0])
+        maps.append(ss[-1][1])
+    up, down = maps[:7], maps[6:]
+    check("engine cruise throttle", [
+        (worst <= 50, f"throttle 40-100-40 %: RPM within {worst} of 2400 (want <= 50)"),
+        (all(abs(r - 2400) <= 10 for r in settled), f"RPM 1.5 s after each move {settled} (want 2400 +-10)"),
+        (all(b > a for a, b in zip(up, up[1:])) and all(b < a for a, b in zip(down, down[1:])),
+         f"MAP {maps} (want rising with throttle, falling back)")])
+    lever("throttle", "throttleFor(24.0, 2400) * 100")
+    pg.evaluate("runBench(2)")
+    map0 = engine_samples(pg, 1)[0][1]
+    lever("prop", "propFor(2100) * 100")
+    ss = engine_samples(pg, 30)
+    rpm = [r for r, _ in ss]
+    check("engine prop back", [
+        (min(rpm) >= 2050, f"RPM low point {min(rpm)} (want >= 2050: no overshoot past 2100 by more than 50)"),
+        (abs(rpm[24] - 2100) <= 20, f"RPM at 2.5 s {rpm[24]} (want 2100 +-20)"),
+        (ss[-1][1] > map0 + 0.3, f"MAP {map0} -> {ss[-1][1]} (want up)")])
+    pg.close()
+    pg, errors2 = open_page("cockpit.html?scenario=runup")
+    pg.evaluate("interact(), setLever('throttle', 35)")
+    rpm = [r for r, _ in engine_samples(pg, 30)]
+    check("engine run-up throttle", [
+        (rpm[-1] - 1800 >= 200, f"throttle 25 -> 35 %: RPM 1800 -> {rpm[-1]}"),
+        (all(b >= a - 2 for a, b in zip(rpm, rpm[1:])) and max(rpm) <= rpm[-1] + 10,
+         f"RPM {rpm[::5]} (want smooth: rising, no overshoot)"),
+        (not errors and not errors2, f"page errors {errors + errors2}")])
+    pg.close()
+
+
 def cockpit_page(open_page, check, only, shots) -> None:
-    """The cockpit page: every scenario and its pilot steps, an unknown id, the embed, a phone, the screenshots."""
+    """Every preset from its link (?scenario=<id>) with its steps, an unknown id, Advanced, the embed, a phone."""
+    default_page(open_page, check, only, shots)
+    engine_page(open_page, check)
     for sid in only or list(PILOT):
         pg, errors = open_page(f"cockpit.html?scenario={sid}")
         name = f"cockpit {sid}"
@@ -448,11 +547,11 @@ def cockpit_page(open_page, check, only, shots) -> None:
         c = pg.evaluate(COCKPIT_JS)
         print(f"{name}: {r}", flush=True)
         expect = EXPECT_COCKPIT[sid](pg, a, r) if sid in EXPECT_COCKPIT else EXPECT[sid](a, r)
-        check(name, [(state.get("state") == "done", f"setup {state}"), (a["speed"] == 0, "paused after setup"),
-                     (c["start"], "Start shown while paused")] + expect + switches_show(sid, c, r))
+        check(name, [(state.get("state") == "done", f"setup {state}"), (a["speed"] == 1, "running after setup"),
+                     (not pg.evaluate("document.getElementById('steps').hidden"), "steps panel open")]
+              + expect + switches_show(sid, c, r))
         pilot = pg.evaluate(f"SCENARIOS.find((s) => s.id === {sid!r}).pilot")
         check(name, [(len(pilot) == len(PILOT[sid]), f"{len(pilot)} pilot steps, {len(PILOT[sid])} checked here")])
-        pg.click("#scn-start")
         for k, (item, step) in enumerate(zip(PILOT[sid], pilot)):
             action, want = item[0], item[1]
             c = pg.evaluate(COCKPIT_JS)
@@ -462,9 +561,48 @@ def cockpit_page(open_page, check, only, shots) -> None:
             check(f"{name} step {k + 1}", [(shown, f"shows '{c['say']}'")] + want(s))
             pg.click("#step-next")
         c = pg.evaluate(COCKPIT_JS)
-        check(name, [(c["say"] == "Done", f"after the last step: '{c['say']}'"),
-                     (not errors, f"page errors {errors}")])
+        check(name, [(c["say"] == "Done", f"after the last step: '{c['say']}'")] + throttle_moves(pg, readout))
+        if shots and sid == "first-start":
+            pg.screenshot(path=str(shots / "cockpit-first-start-running.png"), full_page=True)
+        # Restart: the scenario again, the drawn switches where the bench has them.
+        pg.click("#scn-restart")
+        pg.wait_for_function("window.S32_SCENARIO.state === 'done' && !scenarios.busy()", timeout=300_000)
+        r = readout()
+        check(name + " restart", switches_show(sid, pg.evaluate(COCKPIT_JS), r) + [(not errors, f"page errors {errors}")])
         pg.close()
+
+    # Advanced: its controls act on the same emulator as the cockpit, and the cockpit's on its controls.
+    pg, errors = open_page("cockpit.html?scenario=cruise&advanced=1")
+    readout = functools.partial(pg.evaluate, READOUT_JS)
+    pg.click("#sw-ign1")
+    pg.evaluate("runBench(2)")
+    ign = pg.evaluate("document.getElementById('sw-e1-pld').checked")
+    r = readout()
+    pg.click("#sw-ign1")
+    pg.select_option("#sel-e1-map", "open")
+    pg.evaluate("runBench(3)")
+    r2 = readout()
+    pg.select_option("#sel-e1-map", "none")
+    pg.uncheck("#sw-e1-lnk")
+    pg.evaluate("runBench(5)")
+    r3 = readout()
+    pg.check("#sw-e1-lnk")
+    pg.uncheck("#engine-model")
+    disabled = pg.evaluate("[document.getElementById('sl-rpm').disabled, document.getElementById('starter').disabled]")
+    pg.fill("#sl-rpm", "2000")
+    pg.evaluate("runBench(3)")
+    r4 = readout()
+    c = pg.evaluate(COCKPIT_JS)
+    check("advanced", [(not ign, "Ignition 1 OFF on the cockpit clears Ignition Enable (P-Lead) in Advanced")]
+          + tabs(r, ecu1="red")
+          + [(r2["map"][0] < 10.0, f"Advanced ECU 1 MAP Sensor Disconnected: ECU1 MAP {r2['map'][0]} on the screen")]
+          + tabs(r3, ecu1="red")
+          + [(disabled == [False, True], f"engine model off: RPM slider, STARTER disabled {disabled}")]
+          + rpm_is(r4, 2000) + [(c["rpm"] == "2000", f"cockpit RPM readout {c['rpm']}"),
+                                (not errors, f"page errors {errors}")])
+    if shots:
+        pg.screenshot(path=str(shots / "cockpit-advanced.png"), full_page=True)
+    pg.close()
 
     # An unknown id: a notice, and the emulator runs as without one.
     pg, errors = open_page("cockpit.html?scenario=no-such-scenario")
@@ -474,6 +612,7 @@ def cockpit_page(open_page, check, only, shots) -> None:
     pg.wait_for_timeout(1500)
     t1 = pg.evaluate("telemetry().time_s")
     check("cockpit unknown id", [(state == "unknown", f"state {state}"),
+                                 (pg.evaluate("telemetry().rpm") > 0, "the default state, engine running"),
                                  ("no-such-scenario" in note, f"notice '{note}'"),
                                  (t1 > t0 + 0.3, f"running ({t0:.2f} -> {t1:.2f} s)"),
                                  (not errors, f"page errors {errors}")])
@@ -484,8 +623,8 @@ def cockpit_page(open_page, check, only, shots) -> None:
     for width in (760, 390):
         pg, errors = open_page("cockpit.html?scenario=runup&autostart=1&embed=1", width=width, height=480)
         pg.wait_for_timeout(1200)
-        vis = {sel: pg.locator(sel).is_visible() for sel in (".top", ".scn", "#bench", "#cc", "#switches")}
-        want = {".top": False, ".scn": False, "#bench": False, "#cc": True, "#switches": True}
+        vis = {sel: pg.locator(sel).is_visible() for sel in (".top", ".scn", "#advanced", "#cc", "#switches")}
+        want = {".top": False, ".scn": False, "#advanced": False, "#cc": True, "#switches": True}
         bg = pg.evaluate("getComputedStyle(document.body).backgroundColor")
         sw = pg.evaluate("[document.documentElement.scrollWidth, innerWidth]")
         r = pg.evaluate(READOUT_JS)
@@ -499,15 +638,15 @@ def cockpit_page(open_page, check, only, shots) -> None:
         pg.close()
 
     # Desktop and phone, light and dark: no sideways scrolling, and the screenshots.
-    views = [(sid, "desktop", 1440, "light") for sid in ("runup", "ecu-silent", "ecu-select", "trim-lop", "rpm-limit")]
-    views += [(sid, "phone", 390, "light") for sid in ("runup", "ecu-silent", "ecu-select", "trim-lop")]
-    views += [("runup", "desktop", 1440, "dark"), ("runup", "phone", 390, "dark")]
-    for sid, kind, width, scheme in views if shots else [("runup", "phone", 390, "dark")]:
-        pg, errors = open_page(f"cockpit.html?scenario={sid}&autostart=1", width=width,
+    views = [(None, "desktop", 1440, "light"), (None, "phone", 390, "light"), (None, "desktop", 1440, "dark"),
+             (None, "phone", 390, "dark"), ("rpm-limit", "desktop", 1440, "light")]
+    for sid, kind, width, scheme in views if shots else [(None, "phone", 390, "dark")]:
+        pg, errors = open_page("cockpit.html" + (f"?scenario={sid}" if sid else ""), width=width,
                                height=844 if kind == "phone" else 1000, color_scheme=scheme)
         pg.wait_for_timeout(1500)
         sw = pg.evaluate("[document.documentElement.scrollWidth, innerWidth]")
         cc = pg.locator("#cc").bounding_box()
+        sid = sid or "default"
         check(f"cockpit {sid} {kind} {scheme}", [(sw[0] <= sw[1], f"page width {sw[0]} in a {sw[1]} px window"),
                                                   (kind == "desktop" or cc["width"] >= width - 40,
                                                    f"Controller {cc['width']:.0f} px wide"),
@@ -515,7 +654,7 @@ def cockpit_page(open_page, check, only, shots) -> None:
         if shots:
             suffix = "" if scheme == "light" else "-dark"
             pg.screenshot(path=str(shots / f"cockpit-{sid}-{kind}{suffix}.png"), full_page=True)
-            if (sid, kind, scheme) == ("runup", "desktop", "light"):
+            if (sid, kind, scheme) == ("default", "desktop", "light"):
                 pg.locator("#cc").screenshot(path=str(shots / "cockpit-instrument.png"))
         pg.close()
 
@@ -523,16 +662,19 @@ def cockpit_page(open_page, check, only, shots) -> None:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--site", default=str(REPO / "build" / "bench-site"), help="the bench site (make bench-site)")
-    ap.add_argument("--pages", default="index,cockpit", help="which pages: index, cockpit or both (comma-separated)")
+    ap.add_argument("--pages", default="bench,cockpit", help="which checks: bench (engine model off), cockpit or both")
     ap.add_argument("--shots", help="directory for screenshots")
     ap.add_argument("--only", help="comma-separated scenario ids")
     args = ap.parse_args(argv)
     site = pathlib.Path(args.site)
     pages = args.pages.split(",")
     for page in pages:
-        if page not in ("index", "cockpit") or not (site / f"{page}.html").is_file():
-            print(f"bench_scenarios: no {page}.html in {site} (make bench-site)")
+        if page not in ("bench", "cockpit"):
+            print(f"bench_scenarios: --pages takes bench, cockpit (not {page})")
             return 1
+    if not (site / "cockpit.html").is_file():
+        print(f"bench_scenarios: no cockpit.html in {site} (make bench-site)")
+        return 1
     if not (site / "firmware" / "manifest.json").is_file():
         print(f"bench_scenarios: no default firmware in {site} (make bench-site)")
         return 1
@@ -571,11 +713,11 @@ def main(argv: list[str]) -> int:
                 errors: list[str] = []
                 pg.on("pageerror", lambda e: errors.append(str(e)))
                 pg.goto(base + path)
-                pg.wait_for_function("window.S32_SCENARIO && window.S32_SCENARIO.state !== 'running'", timeout=300_000)
+                pg.wait_for_function("window.S32_READY && window.S32_SCENARIO.state !== 'running'", timeout=300_000)
                 return pg, errors
 
-            if "index" in pages:
-                index_page(open_page, check, only, shots)
+            if "bench" in pages:
+                bench_page(open_page, check, only, shots)
             if "cockpit" in pages:
                 cockpit_page(open_page, check, only, shots)
             b.close()

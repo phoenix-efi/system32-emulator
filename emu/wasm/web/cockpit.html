@@ -54,7 +54,7 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
   /* Header */
-  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 22px 0 16px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 18px 0 12px; }
   .brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .brand-name { font-weight: 650; font-size: 16px; letter-spacing: 0.01em; }
   .brand-view { color: var(--muted); font-size: 15px; }
@@ -63,16 +63,24 @@
     border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; white-space: nowrap;
   }
 
-  /* Scenario bar */
+  .top-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .top-ctl select { width: auto; min-width: 150px; font-size: 14px; padding: 6px 8px; }
+  .btn.small { padding: 6px 12px; font-size: 13px; }
+  .btn.close { padding: 4px 10px; font-size: 18px; line-height: 1; color: var(--muted); }
+
+  /* The steps panel: a preset's checklist, open only when asked for */
   .scn {
     display: grid;
-    grid-template-columns: 230px minmax(0, 1fr) auto;
-    gap: 28px;
-    align-items: start;
-    padding: 20px 0 22px;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: center;
+    padding: 14px 18px;
+    margin-top: 6px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--field);
   }
+  .scn[hidden] { display: none; }
   .eyebrow {
     display: block; margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--muted);
@@ -81,12 +89,13 @@
     width: 100%; font: inherit; font-size: 15px; color: var(--ink); background: var(--field);
     border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
   }
-  .scn-note { display: block; margin-top: 8px; font-size: 13px; color: var(--muted); min-height: 1.2em; }
-  .step-n { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-  .step-say { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; }
+  .scn-note { margin: 0; font-size: 13px; color: var(--muted); }
+  .scn-note:empty { display: none; }
+  .step-n { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .step-say { margin: 0; font-size: 19px; line-height: 1.3; font-weight: 600; letter-spacing: -0.005em; }
   .step-watch { margin: 8px 0 0; color: var(--ink-2); font-size: 15px; max-width: 62ch; }
   .step-watch:empty { display: none; }
-  .step-ctl { display: flex; gap: 8px; align-items: center; padding-top: 20px; flex-wrap: wrap; justify-content: flex-end; }
+  .step-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .btn {
     border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 8px;
     padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
@@ -267,13 +276,76 @@
   }
 
 
-  /* The bench, folded */
-  .bench { border-top: 1px solid var(--line); padding: 16px 0; }
-  .bench summary { cursor: pointer; font-weight: 600; color: var(--ink-2); }
-  .bench p { margin: 10px 0 6px; color: var(--ink-2); max-width: 70ch; }
-  .bench-set { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0 14px; }
-  .bench-set label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
-  .bench-set select { width: auto; max-width: 100%; font-size: 14px; padding: 6px 8px; }
+  /* The starter: a round push button on the panel, held to crank */
+  .starter {
+    width: 40px; height: 40px; margin-top: 16px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: none;
+    border: 2px solid #0b0b0c;
+    background: radial-gradient(circle at 38% 32%, #e0e0dc 0%, #9a9b97 45%, #5d5e5b 100%);
+    box-shadow: 0 0 0 4px #141517, 0 0 0 5px rgba(255, 255, 255, 0.07), 0 3px 4px rgba(0, 0, 0, 0.6);
+  }
+  .starter.down { transform: scale(0.94); background: radial-gradient(circle at 40% 36%, #c4c5c1 0%, #7f807c 60%, #4d4e4b 100%); }
+  .starter[disabled], .pow.off .lev-slot { opacity: 0.4; cursor: default; }
+
+  /* Advanced: every bench control and reading */
+  .adv { border-top: 1px solid var(--line); padding: 14px 0; font-size: 13px; }
+  .adv > summary { cursor: pointer; font-weight: 600; color: var(--ink-2); font-size: 15px; }
+  .adv-bar, .adv-status { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 14px; }
+  .adv-status { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .adv-status strong { color: var(--ink); font-weight: 600; }
+  .adv-check, .adv-sel { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .adv-sel select { width: auto; font-size: 13px; padding: 4px 6px; }
+  .adv-gap { flex: 1; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; }
+  .dot.live { background: #22a35a; }
+  .dot.warn { background: #d18b1f; }
+  .adv-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 14px; }
+  @media (max-width: 900px) { .adv-grid { grid-template-columns: minmax(0, 1fr); } }
+  .adv .card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; background: var(--field); }
+  .adv .card-title {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px;
+    font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  }
+  .adv .btn-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .adv button.secondary {
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 4px 9px;
+    font-size: 12px; cursor: pointer;
+  }
+  .adv button.secondary.active { border-color: var(--accent); color: var(--accent); }
+  .adv button[disabled] { opacity: 0.45; cursor: default; }
+  .adv select, .adv input[type="number"] {
+    width: auto; font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 3px 6px;
+  }
+  .adv input[type="number"] { width: 64px; text-align: right; }
+  .adv input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .adv input[type="range"]:disabled { opacity: 0.5; }
+  .adv .slider-group { margin-bottom: 10px; }
+  .adv .slider-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 2px; }
+  .adv .slider-val { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent); }
+  .adv .sw-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 3px 0; }
+  .adv .ecu-switch-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  @media (max-width: 560px) { .adv .ecu-switch-grid { grid-template-columns: minmax(0, 1fr); } }
+  .adv .ecu-sw-box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+  .adv .ecu-sw-box h4 { margin: 0 0 6px; font-size: 12px; }
+  .adv .dropzone { border: 1.5px dashed var(--line); border-radius: 8px; padding: 10px; margin: 8px 0; cursor: pointer; }
+  .adv .dropzone.dragover { border-color: var(--accent); }
+  #file-input, #btn-afr-auto { display: none; }
+  .adv #fw-default-note { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .adv #map-write-status { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .adv .map-wrap { overflow-x: auto; }
+  .adv table { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .adv th, .adv td { padding: 2px 4px; text-align: right; border-bottom: 1px solid var(--line); }
+  .adv th:first-child, .adv td:first-child { text-align: left; }
+  .adv table.map-tbl th, .adv table.map-tbl td { text-align: center; border: 1px solid var(--line); }
+  .adv table.map-tbl td.active-cell { outline: 2px solid var(--accent); }
+  .adv input.cell-in { width: 34px; border: none; background: transparent; color: var(--ink); text-align: center; font: inherit; }
+  .adv .telem-ecu { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+  .adv .telem-ecu h3 { margin: 0 0 6px; font-size: 13px; display: flex; justify-content: space-between; }
+  .adv .con-box {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; white-space: pre-wrap; max-height: 110px;
+    overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--bg);
+  }
+  .adv #rpl-status, .adv #rpl-logged { font-size: 12px; color: var(--muted); }
   .notice { padding: 16px 0 36px; font-size: 12px; color: var(--muted); }
   .notice p { margin: 0 0 4px; }
 
@@ -281,10 +353,9 @@
   @media (max-width: 560px) {
     .wrap { padding: 0 16px; }
     .top { padding: 14px 0 10px; }
-    .scn { padding: 14px 0 16px; gap: 10px; }
-    .scn .eyebrow[for] { display: none; }
-    .scn-note { margin-top: 4px; }
-    .scn-note:empty { display: none; }
+    .scn { padding: 12px 14px; gap: 10px; }
+    .top-ctl { justify-content: flex-start; }
+    .top-ctl select { min-width: 0; flex: 1; }
     .step-say { font-size: 18px; }
     .step-watch { font-size: 14px; margin-top: 4px; }
     .btn { padding: 7px 14px; }
@@ -292,7 +363,7 @@
 
   /* ?embed=1 */
   html.embed body { background: transparent; }
-  html.embed .top, html.embed .scn, html.embed .bench { display: none; }
+  html.embed .top, html.embed .scn, html.embed .adv { display: none; }
   html.embed .wrap { padding: 0 12px; }
   html.embed .cockpit { padding: 12px 0 8px; gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
   @media (max-width: 680px) { html.embed .cockpit { grid-template-columns: minmax(0, 1fr); } }
@@ -305,27 +376,27 @@
   <header class="top">
     <div class="brand">
       <span class="brand-name">System32 Emulator</span>
-      <span class="brand-view">Cockpit</span>
+      <span class="nff">Not for flight</span>
     </div>
-    <span class="nff">Not for flight</span>
+    <div class="top-ctl">
+      <select id="scn-pick" aria-label="Presets"></select>
+      <button type="button" class="btn small" id="steps-open" hidden>Steps</button>
+      <button type="button" class="btn small" id="reset" disabled>Reset</button>
+    </div>
   </header>
+  <p class="scn-note" id="scn-note" role="status"></p>
 
-  <section class="scn" aria-label="Scenario">
-    <div>
-      <label class="eyebrow" for="scn-pick">Scenario</label>
-      <select id="scn-pick"></select>
-      <span class="scn-note" id="scn-note" role="status"></span>
-    </div>
+  <section class="scn" id="steps" aria-label="Steps" hidden>
     <div aria-live="polite">
       <div class="step-n" id="step-n">&nbsp;</div>
-      <p class="step-say" id="step-say">Loading…</p>
+      <p class="step-say" id="step-say"></p>
       <p class="step-watch" id="step-watch"></p>
     </div>
     <div class="step-ctl">
       <button type="button" class="btn" id="step-act" hidden></button>
-      <button type="button" class="btn primary" id="scn-start" hidden>Start</button>
       <button type="button" class="btn primary" id="step-next" hidden>Next</button>
       <button type="button" class="btn" id="scn-restart" disabled>Restart</button>
+      <button type="button" class="btn close" id="steps-close" aria-label="Close steps">×</button>
     </div>
   </section>
 
@@ -338,7 +409,6 @@
           <div class="cc-glass"></div>
           <div class="cc-over" id="cc-over" hidden>
             <span id="cc-over-text"></span>
-            <button type="button" class="btn primary" id="cc-start" hidden>Start</button>
           </div>
         </div>
       </div>
@@ -370,6 +440,10 @@
               <button type="button" class="tog" id="sw-select" aria-label="ECU Select" data-value="1"></button>
             </div>
           </div>
+          <div class="grp">
+            <span class="engr">Starter</span>
+            <div class="grp-body"><button type="button" class="starter" id="starter" aria-label="Starter"></button></div>
+          </div>
         </div>
 
         <div class="pow">
@@ -395,16 +469,272 @@
     </div>
   </main>
 
-  <details class="bench" id="bench">
-    <summary>Bench</summary>
-    <div class="bench-set">
-      <label>Low-pitch stop
-        <select id="set-prop-stop">
-          <option value="correct">Correct</option>
-          <option value="fine">Too fine</option>
-        </select></label>
+  <details class="adv" id="advanced">
+    <summary>Advanced</summary>
+    <div class="adv-bar">
+      <label class="adv-check"><input type="checkbox" id="engine-model" checked /> Engine model</label>
+      <label class="adv-sel">Low-pitch stop
+        <select id="set-prop-stop"><option value="correct">Correct</option><option value="fine">Too fine</option></select></label>
+      <span class="adv-gap"></span>
+      <button type="button" class="secondary" onclick="rebootSystem()">Reboot</button>
+      <button type="button" class="secondary" id="spd-0" onclick="setSpeed(0)">Pause</button>
+      <button type="button" class="secondary active" id="spd-1" onclick="setSpeed(1)">1×</button>
+      <button type="button" class="secondary" id="spd-2" onclick="setSpeed(2)">2×</button>
+      <button type="button" class="secondary" id="spd-3" onclick="setSpeed(3)">Max</button>
     </div>
-    <a id="bench-link" href="index.html">Open the bench</a>
+    <div class="adv-status">
+      <span><span id="status-dot" class="dot"></span><span id="status-text">Loading…</span></span>
+      <span>FW <strong id="fw-ver">none</strong></span>
+      <span id="not-for-flight" hidden>Not for flight</span>
+      <span>Display <strong id="gpu-mode"></strong></span>
+      <span>Time <strong id="sim-time">0.00s</strong></span>
+      <span>Speed <strong id="sim-rate">0.0×</strong></span>
+      <span>Fuel <strong id="sim-gph">0.0 GPH</strong></span>
+      <span>AFR <strong id="sim-afr">14.2</strong></span>
+      <span>Trim <strong id="sim-trim">0%</strong></span>
+    </div>
+    <div class="adv-grid">
+      <div class="adv-col">
+    <div class="card">
+        <div class="card-title">
+          <span>Aircraft Configuration &amp; Firmware</span>
+          <span id="loaded-summary">No firmware loaded</span>
+        </div>
+  
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+          <strong>Your own firmware replaces the default.</strong> Drop a Cockpit Controller image (<code>.bin</code> / <code>.hex</code>), the ECU images (<code>.bin</code> / <code>.hex</code>, <code>*_bflash.bin</code> + <code>*_pflash.bin</code>, or an application-only <code>*_app.flat</code>), and optional <code>.fram</code> config files here, or click to choose them. You can also drop a <code>DATALOG.CSV</code> flight log.
+          <div id="fw-default-note">
+            No firmware is loaded yet.
+          </div>
+          <input type="file" id="file-input" multiple onchange="handleFiles(this.files)" />
+        </div>
+  
+        <div class="btn-row">
+          <span>Export Settings:</span>
+          <button type="button" class="secondary" onclick="downloadFram(0, 'controller-config.cfg')">Controller Config</button>
+          <button type="button" class="secondary" onclick="downloadFram(1, 'ecu1-config.cfg')">ECU 1 Maps &amp; Config</button>
+          <button type="button" class="secondary" onclick="downloadFram(2, 'ecu2-config.cfg')">ECU 2 Maps &amp; Config</button>
+        </div>
+      </div>
+  
+      <div class="card">
+        <div class="card-title">
+          <span>Engine Crank / Cam Trigger Simulator</span>
+          <div class="btn-row">
+            <button type="button" class="secondary rpm-preset" onclick="setRpmPreset(0)">Stop (0)</button>
+            <button type="button" class="secondary rpm-preset" onclick="setRpmPreset(750)">Idle (750)</button>
+            <button type="button" class="secondary rpm-preset" onclick="setRpmPreset(1800)">Runup (1800)</button>
+            <button type="button" class="secondary rpm-preset" onclick="setCruisePreset()">Cruise (2400)</button>
+            <button type="button" class="secondary rpm-preset" onclick="setTakeoffPreset()">Takeoff (2700 / 29&Prime;)</button>
+          </div>
+        </div>
+  
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Engine Speed (RPM)</span>
+            <span class="slider-val" id="val-rpm">2400 RPM</span>
+          </div>
+          <input type="range" id="sl-rpm" min="0" max="3000" step="1" value="2400" oninput="updateEngine()" />
+        </div>
+  
+        <div>
+          <div class="sw-row">
+            <span>Engine Configuration:</span>
+            <select id="sel-cyl" onchange="updateEngine()">
+              <option value="6" selected>6 Cylinder (Lycoming IO-540)</option>
+              <option value="4">4 Cylinder (Lycoming IO-360)</option>
+            </select>
+          </div>
+          <div class="sw-row">
+            <span>ECU 1 Trigger Sensor Reference (&deg;BTDC):</span>
+            <input type="number" id="in-mag1" value="80" min="40" max="120" onchange="updateEngine()" />
+          </div>
+          <div class="sw-row">
+            <span>ECU 2 Trigger Sensor Reference (&deg;BTDC):</span>
+            <input type="number" id="in-mag2" value="77" min="40" max="120" onchange="updateEngine()" />
+          </div>
+        </div>
+      </div>
+  
+      <div class="card">
+        <div class="card-title">
+          <span>Engine Sensors &amp; Dual Electrical Buses</span>
+        </div>
+  
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Manifold Pressure (MAP)</span>
+            <span class="slider-val" id="val-map">24.0 inHg</span>
+          </div>
+          <input type="range" id="sl-map" min="8.0" max="30.5" step="0.1" value="24.0" oninput="updateSensors()" />
+        </div>
+  
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Throttle Position (TPS)</span>
+            <span class="slider-val" id="val-tps">55 %</span>
+          </div>
+          <input type="range" id="sl-tps" min="0" max="100" step="1" value="55" oninput="updateSensors()" />
+        </div>
+  
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Wideband Air-Fuel Ratio (AFR)</span>
+            <span>
+              <span class="slider-val" id="val-afr">14.2 (Auto)</span>
+              <button type="button" class="secondary" id="btn-afr-auto" onclick="resetAfrAuto()">Reset Auto</button>
+            </span>
+          </div>
+          <input type="range" id="sl-afr" min="10.0" max="19.5" step="0.1" value="14.2" oninput="onManualAfrSlide()" />
+        </div>
+  
+        <div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Intake Air Temp (IAT)</span>
+              <span class="slider-val" id="val-iat">72 &deg;F</span>
+            </div>
+            <input type="range" id="sl-iat" min="0" max="160" step="1" value="72" oninput="updateSensors()" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Engine Temp</span>
+              <span class="slider-val" id="val-et">185 &deg;F</span>
+            </div>
+            <input type="range" id="sl-et" min="60" max="250" step="1" value="185" oninput="updateSensors()" />
+          </div>
+        </div>
+  
+        <div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Bus 1 Volts (ECU 1)</span>
+              <span class="slider-val" id="val-batt1">14.1 V</span>
+            </div>
+            <input type="range" id="sl-batt1" min="8.5" max="16.0" step="0.1" value="14.1" oninput="updateSensors()" />
+          </div>
+          <div class="slider-group">
+            <div class="slider-head">
+              <span>Bus 2 Volts (ECU 2)</span>
+              <span class="slider-val" id="val-batt2">14.1 V</span>
+            </div>
+            <input type="range" id="sl-batt2" min="8.5" max="16.0" step="0.1" value="14.1" oninput="updateSensors()" />
+          </div>
+        </div>
+  
+        <div class="slider-group">
+          <div class="slider-head">
+            <span>Throttle Sensor Signal Noise</span>
+            <span class="slider-val" id="val-noise">&plusmn;0 counts</span>
+          </div>
+          <input type="range" id="sl-noise" min="0" max="20" step="1" value="0" oninput="updateSensors()" />
+        </div>
+      </div>
+  
+      <div class="card">
+        <div class="card-title">
+          <span>Cockpit Switches &amp; Sensor Fault Testing</span>
+          <div class="btn-row">
+            <button type="button" class="secondary" onclick="injectFailoverPreset()">Simulate ECU 1 Off + Floating TPS</button>
+            <button type="button" class="secondary" onclick="clearFaultsPreset()">Clear Faults</button>
+          </div>
+        </div>
+        <div class="ecu-switch-grid">
+          <div class="ecu-sw-box">
+            <h4>ECU 1 (Primary Bus)</h4>
+            <div class="sw-row"><span>ECU Power</span><input type="checkbox" id="sw-e1-pwr" checked onchange="updateSwitches(0)" /></div>
+            <div class="sw-row"><span>Link Data Wires (off = powered but silent)</span><input type="checkbox" id="sw-e1-lnk" checked onchange="updateSwitches(0)" /></div>
+            <div class="sw-row"><span>Ignition Enable (P-Lead)</span><input type="checkbox" id="sw-e1-pld" checked onchange="updateSwitches(0)" /></div>
+            <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e1-inj" checked onchange="updateSwitches(0)" /></div>
+            <div class="sw-row"><span>Start Timing Retard</span><input type="checkbox" id="sw-e1-ret" onchange="updateSwitches(0)" /></div>
+            <div class="sw-row">
+              <span>ECU 1 MAP Sensor:</span>
+              <select id="sel-e1-map" onchange="updateMapFault()">
+                <option value="none">Normal (Connected)</option>
+                <option value="open">Disconnected</option>
+                <option value="gnd">Shorted to Ground (0V)</option>
+                <option value="vcc">Shorted to 5V</option>
+              </select>
+            </div>
+          </div>
+          <div class="ecu-sw-box">
+            <h4>ECU 2 (Secondary Bus)</h4>
+            <div class="sw-row"><span>ECU Power</span><input type="checkbox" id="sw-e2-pwr" checked onchange="updateSwitches(1)" /></div>
+            <div class="sw-row"><span>Link Data Wires (off = powered but silent)</span><input type="checkbox" id="sw-e2-lnk" checked onchange="updateSwitches(1)" /></div>
+            <div class="sw-row"><span>Ignition Enable (P-Lead)</span><input type="checkbox" id="sw-e2-pld" checked onchange="updateSwitches(1)" /></div>
+            <div class="sw-row"><span>Fuel Injectors Enable</span><input type="checkbox" id="sw-e2-inj" onchange="updateSwitches(1)" /></div>
+            <div class="sw-row"><span>Start Timing Retard</span><input type="checkbox" id="sw-e2-ret" onchange="updateSwitches(1)" /></div>
+            <div class="sw-row">
+              <span>ECU 2 Throttle Sensor:</span>
+              <select id="sel-e2-tps" onchange="updateTpsFault()">
+                <option value="none">Normal (Connected)</option>
+                <option value="float">Disconnected / Floating</option>
+                <option value="gnd">Shorted to Ground (0V)</option>
+                <option value="5v">Shorted to 5V</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="ecu-sw-box">
+          <h4>Panel Switches</h4>
+          <div class="sw-row"><span>Fuel Pump 1</span><input type="checkbox" id="sw-pump1" checked onchange="updatePumps()" /></div>
+          <div class="sw-row"><span>Fuel Pump 2</span><input type="checkbox" id="sw-pump2" onchange="updatePumps()" /></div>
+          <div class="sw-row">
+            <span>ECU Select (grounds the other ECU's Fuel Injectors Enable)</span>
+            <select id="sel-ecu-select" onchange="setEcuSelect(this.value)">
+              <option value="1" selected>ECU 1</option>
+              <option value="2">ECU 2</option>
+              <option value="both">Both enabled</option>
+              <option value="none">Both grounded</option>
+            </select>
+          </div>
+        </div>
+      </div>
+  
+      <!-- CARD 6: DATALOG CSV REPLAY -->
+      <div class="card">
+        <div class="card-title">
+          <span>Flight Log Replay (1 Hz Datalog.CSV)</span>
+          <div class="btn-row">
+            <button type="button" class="secondary" onclick="loadSampleTakeoffReplay()">Load Demo Climb (synthetic)</button>
+            <button type="button" class="secondary" id="btn-rpl-play" onclick="toggleReplayPlay()">Play / Pause</button>
+          </div>
+        </div>
+        <div>
+          <span id="rpl-status">Drop a DATALOG.CSV above or click "Load Demo Climb (synthetic)"</span>
+          <span id="rpl-logged"></span>
+        </div>
+        <input type="range" id="sl-rpl" min="0" max="0" value="0" oninput="scrubReplay(this.value)" disabled />
+      </div>
+      </div>
+      <div class="adv-col">
+    <div class="card">
+        <div class="card-title">
+          <span>Live Hardware Outputs (Coils, Injectors, Serial Link)</span>
+        </div>
+        <div id="telem-container"></div>
+        <div class="card-title">
+          <span>ECU Diagnostic Console</span>
+        </div>
+        <div class="con-box" id="ecu-console">Waiting for ECU boot…</div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span>Live Fuel &amp; Ignition Map Editor</span>
+          <div class="btn-row">
+            <button type="button" class="secondary active" id="map-btn-fuel" onclick="selectMapTab(1)">Fuel Map</button>
+            <button type="button" class="secondary" id="map-btn-ign" onclick="selectMapTab(0)">Ignition Map</button>
+            <button type="button" class="secondary" onclick="renderMapTable()">Refresh</button>
+          </div>
+        </div>
+        <div>
+          Before boot, edits go into both ECU FRAM images; while running, they go to both ECUs as table writes over the link (as the Controller sends them) and the view shows what ECU 1 stored. The active RPM / MAP operating cell is highlighted.
+        </div>
+        <div class="map-wrap" id="map-table-container"></div>
+        <div id="map-write-status"></div>
+      </div>
+      </div>
+    </div>
   </details>
 
   <footer class="notice">
@@ -433,9 +763,10 @@
 <script src="s32_bench.js"></script>
 <script>
 "use strict";
-/* The cockpit view: the Cockpit Controller as the instrument, the panel switches, one throttle, and each scenario's
- * steps for the pilot (SCENARIOS in s32_bench.js). It drives the same bench as index.html, with the same controls and
- * defaults (BENCH_DEFAULTS), through the same scenario runner. */
+/* The cockpit view: the Cockpit Controller as the instrument, the panel switches, the STARTER, the throttle and prop
+ * levers, and each scenario's checklist (SCENARIOS in s32_bench.js). Below, closed by default, the Advanced section:
+ * every control and reading of the bench (s32_bench.js), which is the bench's state; the cockpit's switches and
+ * levers drive the same controls. One emulator, one page. */
 
 const QUERY = new URLSearchParams(location.search);
 const EMBED = QUERY.get("embed") === "1";
@@ -464,144 +795,82 @@ const FACE = {
   knobDegPerClick: 18,
 };
 
-/* The engine: a simple bench model of an engine with a constant-speed propeller, made up for this page (not aircraft
- * data). It sets the bench's RPM, MAP and throttle sensor from the two levers and from the sparks the ECUs fire.
+/* The engine: a simple bench model of a normally aspirated engine with a constant-speed propeller, made up for this
+ * page (not aircraft data). It sets the bench's RPM, MAP and throttle sensor from the two levers, the STARTER and the
+ * sparks the ECUs fire.
  *   power      the RPM the engine reaches with the blades on a correctly set low-pitch stop, both ECUs firing,
  *              against the throttle (0..1); a stop set elsewhere scales the part above idle (stops: the RPM at full
  *              throttle on the stop)
- *   governor   the prop lever (0..1) sets the governed RPM, low to high. When the engine could turn faster, the
- *              governor coarsens the blades until it holds that RPM; the blade angle follows with a first-order lag
- *              (tau.governor), so a fast throttle push overshoots first; while no ECU fires the blades stay where they
- *              are. Below that, the blades sit on the stop and the throttle sets the RPM.
+ *   governor   the prop lever (0..1) sets the governed RPM, low to high. The governor holds RPM at most there: a
+ *              ceiling. While the engine has the power to turn faster, RPM sits at the ceiling and the throttle does not
+ *              move it; with less power the blades sit on the stop and the throttle sets the RPM. The ceiling follows
+ *              the governed RPM with a first-order lag (tau.governor): a prop lever move takes about a second, and a
+ *              fast throttle push from on the stop starts the ceiling at the RPM the stop allows, so RPM overshoots
+ *              until the governor catches up. While no ECU fires the ceiling stays where it is.
  *   oneEcu     the share of power with only one ECU firing; with none the engine winds down and stops below stopBelow
- *   closedMap  MAP with the throttle closed, against RPM (ambient when stopped); opening: the share of the way from
- *              there to fullMap, against the throttle. So MAP rises with throttle and falls a little as RPM rises.
- *   tau        how fast RPM follows: up, down, winding down with no spark; and the governor's lag (seconds)
- *   startHold  after a scenario starts the engine, RPM is held this long while the ECUs pick up the crank signal
+ *   manifold   MAP = ambient - (ambient - minimum) x x / (1 + x), x = k(throttle) x RPM: the manifold's vacuum grows with
+ *              RPM and saturates; the throttle sets k (log-linear between the anchors, each a throttle, RPM and MAP the
+ *              model passes through). So MAP rises with throttle, and at part throttle falls as RPM rises (prop back:
+ *              MAP up); at full throttle it stays near ambient.
+ *   tau        how fast RPM follows its target: up, down, winding down with no spark, cranking; the governor's lag
+ *   startHold  after a preset starts the engine, RPM is held this long while the ECUs pick up the crank signal
+ *   crankRpm   the STARTER button turns the engine at this speed while held; with spark and fuel it runs up from
+ *              there. Fuel: a pump on and at least one ECU's injectors enabled.
  * An ECU counts as firing while its first coil fires at least half as often as the RPM calls for (once per
- * revolution), measured over the last `window` seconds. Mixture, fuel and temperatures do not change the RPM. */
+ * revolution), measured over the last `window` seconds or two revolutions, whichever is longer. Mixture and
+ * temperatures do not change the RPM. With the engine model off (Advanced) the RPM, MAP and throttle sliders set the
+ * bench directly and the levers and STARTER do nothing. */
 const ENGINE = {
-  power: [[0, 750], [0.25, 1800], [0.5, 2520], [0.65, 2620], [1, 2700]],
+  power: [[0, 750], [0.25, 1800], [0.4, 2460], [0.55, 2600], [1, 2700]],
   stops: { correct: 2700, fine: 3150 },
   governor: [2000, 2700],
   oneEcu: 0.85,
-  closedMap: [[0, 29.9], [750, 12.0], [2700, 10.0]],
-  opening: [[0, 0], [0.25, 0.45], [0.5, 0.7], [0.65, 0.8], [1, 1]],
-  fullMap: 29.0,
-  tau: { up: 0.4, down: 0.6, nospark: 1.5, governor: 0.8 },
+  manifold: { ambient: 29.9, minimum: 8.0, anchors: [[0, 750, 12.0], [0.25, 1800, 19.0], [0.55, 2400, 24.0], [1, 2700, 29.0]] },
+  tau: { up: 0.4, down: 0.5, nospark: 1.5, governor: 0.7, crank: 0.3 },
+  crankRpm: 180,
   stopBelow: 200,
   startHold: 1.0,
   window: 0.3,
 };
+// k at each manifold anchor: x = r / (1 - r), r = the vacuum's share of its maximum, k = x / RPM; ln k in a table.
+const MAP_LNK = ENGINE.manifold.anchors.map(([t, rpm, map]) => {
+  const { ambient, minimum } = ENGINE.manifold, r = (ambient - map) / (ambient - minimum);
+  return [t, Math.log(r / (1 - r) / rpm)];
+});
 
-let M = null;
-let booted = false;
-let simSpeed = 0;
-let lastFrameWall = performance.now();
-let frameCounter = 0;
 const lcd = s32CreateLcd($("lcd"));
+let frameCounter = 0;
 
 function renderLcdFrame(rgbaPtr) {
   lcd.draw(M, rgbaPtr);
 }
 
-function telemetry() {
-  return s32Telemetry(M);
-}
+/* ---- The bench: the Advanced section's controls are its state (s32_bench.js) ---- */
 
-/* ---- The bench: the bench page's controls by id, at its defaults ---- */
+const ctl = (id) => document.getElementById(id);
 
-const bench = { ...BENCH_DEFAULTS };
-let cylinders = 4;                    // the default firmware's configuration
-const TRIGGER_DEG = [80, 77];         // the trigger sensor positions, as on the bench page
-
-function applyEngine() {
-  if (!M) return;
-  M._s32_wasm_set_cylinders(cylinders, TRIGGER_DEG[0], TRIGGER_DEG[1]);
-  M._s32_wasm_set_rpm(bench["sl-rpm"]);
-}
-
-function applySensors() {
-  if (!M) return;
-  M._s32_wasm_set_sensors(bench["sl-map"], bench["sl-tps"], bench["sl-iat"], bench["sl-et"], bench["sl-batt1"],
-                          bench["sl-batt2"], bench["sl-noise"], -1.0);
-}
-
-function applyEcu(k) {
-  if (!M) return;
-  const p = k === 0 ? "sw-e1-" : "sw-e2-";
-  M._s32_wasm_set_switches(k, bench[p + "pld"] ? 1 : 0, bench[p + "inj"] ? 1 : 0, bench[p + "ret"] ? 1 : 0,
-                           bench[p + "pwr"] ? 1 : 0);
-  M._s32_wasm_set_link(k, bench[p + "lnk"] ? 1 : 0);
-}
-
-function applyTpsFault() {
-  if (!M) return;
-  const mode = bench["sel-e2-tps"];
-  if (mode === "float") M._s32_wasm_set_tps_fault(1, 512, 30);
-  else if (mode === "gnd") M._s32_wasm_set_tps_fault(1, 0, 0);
-  else if (mode === "5v") M._s32_wasm_set_tps_fault(1, 1023, 0);
-  else { M._s32_wasm_set_tps_fault(1, -1, 0); applySensors(); }
-}
-
-function applyMapFault() {
-  if (!M || !booted) return;
-  const mode = bench["sel-e1-map"];
-  M.ccall("s32_wasm_set_an_fault", "number", ["number", "number", "string"], [0, 5, mode === "none" ? "" : mode]);
-}
-
-function applyPumps() {
-  if (!M || !booted) return;
-  const t = (telemetry().time_s + 0.001).toFixed(4);
-  const pos = (id) => (bench[id] ? "on" : "off");
-  s32SetKnob(M, "S32_SWITCH", `${t}:pump1=${pos("sw-pump1")},${t}:pump2=${pos("sw-pump2")}`);
-}
-
-function reboot() {
-  if (!M) return;
-  booted = M._s32_wasm_boot(cylinders, TRIGGER_DEG[0], TRIGGER_DEG[1]) === 0;
-  if (booted) {
-    applyEngine();
-    applySensors();
-    applyEcu(0);
-    applyEcu(1);
-    applyTpsFault();
-    applyMapFault();
-    applyPumps();
-  }
-}
-
-// One bench control by its id on the bench page, then what that control drives.
+// One control by its id, then what it drives; the cockpit's own switches go through here too.
 function setControl(id, value) {
-  if (id === "sel-ecu-select") {      // the switch grounds the Fuel Injectors Enable wire of the ECU not selected
-    bench["sw-e1-inj"] = value === "1" || value === "both";
-    bench["sw-e2-inj"] = value === "2" || value === "both";
-    applyEcu(0);
-    applyEcu(1);
-  } else if (id === "prop-stop") {     // the propeller's low-pitch stop (a bench setting)
+  if (id === "prop-stop") {            // the propeller's low-pitch stop (a bench setting)
     eng.stop = value;
+    ctl("set-prop-stop").value = value;
   } else if (id === "sel-pump") {      // the pump switch runs one pump: 1 or 2
-    bench["sw-pump1"] = value === "1";
-    bench["sw-pump2"] = value === "2";
-    applyPumps();
-  } else if (!(id in BENCH_DEFAULTS)) {
-    throw new Error(`no control ${id} on the cockpit page`);
+    ctl("sw-pump1").checked = value === "1";
+    ctl("sw-pump2").checked = value === "2";
+    updatePumps();
+  } else if (id === "sel-ecu-select") {
+    ctl(id).value = value;
+    setEcuSelect(value);
   } else {
-    bench[id] = typeof BENCH_DEFAULTS[id] === "number" ? Number(value) : value;
-    if (id === "sl-rpm") applyEngine();
-    else if (id.startsWith("sl-")) applySensors();
-    else if (id.startsWith("sw-e1-")) applyEcu(0);
-    else if (id.startsWith("sw-e2-")) applyEcu(1);
-    else if (id === "sel-e1-map") applyMapFault();
-    else if (id === "sel-e2-tps") applyTpsFault();
-    else applyPumps();
+    benchSet(id, value);
   }
   showControls();
 }
 
 /* ---- The engine model (ENGINE) ---- */
 
-const eng = { throttle: 0, prop: 1, stop: "correct", pitch: 0, rpm: 0, hold: -1, firing: [false, false],
+const eng = { on: true, starter: false, throttle: 0, prop: 1, stop: "correct", ceiling: 0, onStop: true, rpm: 0, hold: -1,
+              firing: [false, false],
               hist: [], last: null };
 
 function interp(table, x) {
@@ -621,24 +890,18 @@ function powerRpm(throttle) {
 const governedRpm = (prop) => ENGINE.governor[0] + prop * (ENGINE.governor[1] - ENGINE.governor[0]);
 
 function manifold(throttle, rpm) {
-  const closed = interp(ENGINE.closedMap, rpm);
-  return closed + (ENGINE.fullMap - closed) * interp(ENGINE.opening, throttle);
+  const { ambient, minimum } = ENGINE.manifold, x = Math.exp(interp(MAP_LNK, throttle)) * rpm;
+  return ambient - (ambient - minimum) * x / (1 + x);
 }
 
-// The blade angle (0 = on the low-pitch stop) the governor wants: the one that turns the engine at the governed RPM
-// with this share of its power. And the RPM the engine settles at with the blades there.
+// The RPM the engine would reach with the blades on the stop and this share of its power; and the RPM it settles at
+// with the governor working.
 function engineFree(share) {
   return share > 0 ? powerRpm(eng.throttle) * Math.cbrt(share) : 0;
 }
 
-function governorPitch(free) {
-  const gov = governedRpm(eng.prop);
-  return free > gov ? 1 - gov / free : 0;
-}
-
 function engineTarget(share) {
-  const free = engineFree(share);
-  return free * (1 - governorPitch(free));
+  return Math.min(engineFree(share), governedRpm(eng.prop));
 }
 
 // The throttle (0..1) that gives this MAP at this RPM.
@@ -655,10 +918,32 @@ const propFor = (rpm) => (rpm - ENGINE.governor[0]) / (ENGINE.governor[1] - ENGI
 
 // The bench's RPM, MAP and throttle sensor from the model.
 function engineOut() {
-  const rpm = Math.round(eng.rpm), map = Math.round(manifold(eng.throttle, eng.rpm) * 100) / 100;
-  const tps = Math.round(eng.throttle * 1000) / 10;
-  if (rpm !== bench["sl-rpm"]) { bench["sl-rpm"] = rpm; applyEngine(); }
-  if (map !== bench["sl-map"] || tps !== bench["sl-tps"]) { bench["sl-map"] = map; bench["sl-tps"] = tps; applySensors(); }
+  if (!eng.on) return;
+  const rpm = Math.round(eng.rpm), map = Math.round(manifold(eng.throttle, eng.rpm) * 10) / 10;
+  const tps = Math.round(eng.throttle * 100);
+  if (String(rpm) !== ctl("sl-rpm").value) { ctl("sl-rpm").value = String(rpm); updateEngine(); }
+  if (Number(ctl("sl-map").value) !== map || Number(ctl("sl-tps").value) !== tps) {
+    ctl("sl-map").value = String(map);
+    ctl("sl-tps").value = String(tps);
+    updateSensors();
+  }
+}
+
+// The engine model on (the levers and STARTER drive RPM, MAP and throttle) or off (the Advanced sliders do).
+function setEngineModel(on) {
+  eng.on = on;
+  ctl("engine-model").checked = on;
+  for (const id of ["sl-rpm", "sl-map", "sl-tps"]) ctl(id).disabled = on;
+  for (const el of document.querySelectorAll(".rpm-preset")) el.disabled = on;
+  document.querySelector(".pow").classList.toggle("off", !on);
+  $("starter").disabled = !on;
+  if (on) {
+    eng.rpm = Number(ctl("sl-rpm").value);
+    eng.hist = [];
+    eng.hold = -1;
+    engineOut();
+  }
+  showControls();
 }
 
 function engineStop() {
@@ -672,12 +957,14 @@ function engineStop() {
 // Set the levers and the propeller's bench settings to a scenario's quadrant and start the engine at the speed they
 // give with both ECUs firing.
 function engineQuadrant(q) {
-  if (!q) return;
+  if (!q || !eng.on) return;
   eng.stop = q.stop || "correct";
   eng.prop = q.rpm !== undefined ? propFor(q.rpm) : (q.prop ?? 100) / 100;
   eng.throttle = q.map !== undefined ? throttleFor(q.map, governedRpm(eng.prop)) : (q.throttle ?? 0) / 100;
-  eng.pitch = governorPitch(engineFree(1));
-  eng.rpm = engineTarget(1);
+  const free = engineFree(1), gov = governedRpm(eng.prop);
+  eng.onStop = free <= gov;
+  eng.ceiling = eng.onStop ? free : gov;
+  eng.rpm = Math.min(free, eng.ceiling);
   eng.hold = M && booted ? telemetry().time_s + ENGINE.startHold : -1;
   eng.firing = [true, true];
   eng.hist = [];
@@ -687,6 +974,7 @@ function engineQuadrant(q) {
 
 // One step of the model, from the bench's telemetry after the bench ran.
 function engineUpdate(t) {
+  if (!eng.on) return;
   const now = t.time_s, sp = t.ecu.map((e) => e.coils[0].sparks);
   if (eng.last === null || now < eng.last || (eng.hist.length && sp.some((v, k) => v < eng.hist[eng.hist.length - 1][1][k]))) {
     eng.last = now;                    // a power cycle: time and spark counts start again
@@ -697,21 +985,35 @@ function engineUpdate(t) {
   if (dt <= 0) return;
   eng.last = now;
   eng.hist.push([now, sp]);
-  while (eng.hist.length > 2 && now - eng.hist[1][0] >= ENGINE.window) eng.hist.shift();
+  const window = Math.max(ENGINE.window, eng.rpm > 0 ? 120 / eng.rpm : 0);
+  while (eng.hist.length > 2 && now - eng.hist[1][0] >= window) eng.hist.shift();
   const [t0, s0] = eng.hist[0], span = now - t0;
   if (eng.rpm <= 0) eng.firing = [false, false];
-  else if (span >= ENGINE.window / 2) {
+  else if (span >= window / 2) {
     for (const k of [0, 1]) eng.firing[k] = (sp[k] - s0[k]) / (eng.rpm / 60 * span) >= 0.5;
   }
-  if (eng.rpm <= 0 || now < eng.hold) return;
-  const n = eng.firing.filter(Boolean).length;
+  if ((eng.rpm <= 0 && !eng.starter) || now < eng.hold) return;
+  const fuel = (ctl("sw-pump1").checked || ctl("sw-pump2").checked) && (ctl("sw-e1-inj").checked || ctl("sw-e2-inj").checked);
+  const n = fuel ? eng.firing.filter(Boolean).length : 0;
   const share = n === 2 ? 1 : n === 1 ? ENGINE.oneEcu : 0;
   const free = engineFree(share);
-  if (share > 0) eng.pitch += (governorPitch(free) - eng.pitch) * Math.min(1, dt / ENGINE.tau.governor);
-  const target = free * (1 - eng.pitch);
-  const tau = share === 0 ? ENGINE.tau.nospark : target > eng.rpm ? ENGINE.tau.up : ENGINE.tau.down;
+  if (share > 0) {
+    const gov = governedRpm(eng.prop);
+    if (free <= Math.min(gov, eng.ceiling)) {
+      eng.onStop = true;                 // not enough power to govern: the blades on the stop
+      eng.ceiling = free;
+    } else {
+      if (eng.onStop) eng.ceiling = free;   // leaving the stop: the governor starts from where the blades are
+      eng.onStop = false;
+      eng.ceiling += (gov - eng.ceiling) * Math.min(1, dt / ENGINE.tau.governor);
+    }
+  }
+  let target = Math.min(free, eng.ceiling);
+  const cranking = eng.starter && target < ENGINE.crankRpm;
+  if (cranking) target = ENGINE.crankRpm;
+  const tau = cranking ? ENGINE.tau.crank : share === 0 ? ENGINE.tau.nospark : target > eng.rpm ? ENGINE.tau.up : ENGINE.tau.down;
   eng.rpm += (target - eng.rpm) * Math.min(1, dt / tau);
-  if (share === 0 && eng.rpm < ENGINE.stopBelow) eng.rpm = 0;
+  if (share === 0 && !eng.starter && eng.rpm < ENGINE.stopBelow) eng.rpm = 0;
   engineOut();
 }
 
@@ -733,29 +1035,31 @@ function runBench(secs) {
 }
 
 function setLever(which, pct) {
+  if (!eng.on) return;
   eng[which] = Math.min(100, Math.max(0, pct)) / 100;
-  if (eng.rpm > 0) engineOut();
+  engineOut();
   showControls();
 }
 
 /* ---- What the page shows of the bench ---- */
 
-const ecuSelect = () => (bench["sw-e2-inj"] && !bench["sw-e1-inj"] ? "2" : "1");
+// The cockpit's switches and levers as the bench's controls have them.
+const ecuSelect = () => (ctl("sw-e2-inj").checked && !ctl("sw-e1-inj").checked ? "2" : "1");
+const pumpSelect = () => (ctl("sw-pump2").checked && !ctl("sw-pump1").checked ? "2" : "1");
 
 function showControls() {
-  for (const el of document.querySelectorAll(".tog[role=switch]")) el.setAttribute("aria-checked", String(!!bench[el.dataset.ctl]));
-  const sel = $("sw-select");
-  sel.dataset.value = ecuSelect();
-  sel.setAttribute("aria-label", `ECU Select: ${ecuSelect()}`);
+  for (const el of document.querySelectorAll(".tog[role=switch]")) el.setAttribute("aria-checked", String(ctl(el.dataset.ctl).checked));
+  for (const [id, v, name] of [["sw-select", ecuSelect(), "ECU Select"], ["sw-pump", pumpSelect(), "Fuel Pump"]]) {
+    $(id).dataset.value = v;
+    $(id).setAttribute("aria-label", `${name}: ${v}`);
+  }
   for (const which of ["throttle", "prop"]) {
     const el = $(which), v = Math.round(eng[which] * 1000) / 10;
     el.style.setProperty("--v", eng[which]);
     el.setAttribute("aria-valuenow", String(v));
   }
-  $("ro-map").textContent = Number(bench["sl-map"]).toFixed(1);
-  $("set-prop-stop").value = eng.stop;
-  $("sw-pump").dataset.value = bench["sw-pump2"] && !bench["sw-pump1"] ? "2" : "1";
-  $("sw-pump").setAttribute("aria-label", `Fuel Pump: ${$("sw-pump").dataset.value}`);
+  $("ro-map").textContent = Number(ctl("sl-map").value).toFixed(1);
+  ctl("set-prop-stop").value = eng.stop;
 }
 
 // The engine readouts.
@@ -990,7 +1294,7 @@ function buildSwitches() {
       const other = el.dataset.value === "1" ? "2" : "1";
       if (el.id === "sw-select") setControl("sel-ecu-select", other);
       else if (el.id === "sw-pump") setControl("sel-pump", other);
-      else setControl(el.dataset.ctl, !bench[el.dataset.ctl]);
+      else setControl(el.dataset.ctl, !ctl(el.dataset.ctl).checked);
     });
   }
   // The levers: drag (forward = up) or the arrow keys.
@@ -1031,31 +1335,41 @@ function buildSwitches() {
     else showControls();
   });
   $("cc-chord").addEventListener("click", () => { if (interact()) M._s32_wasm_button_pulse(0b1100, 1500); });
+  // The STARTER cranks while held (pointer, Space or Enter).
+  const st = $("starter");
+  const crank = (on) => {
+    if (on && !interact()) return;
+    eng.starter = on && eng.on;
+    st.classList.toggle("down", eng.starter);
+  };
+  st.addEventListener("pointerdown", (e) => { if (e.button === 0) { e.preventDefault(); st.setPointerCapture(e.pointerId); crank(true); } });
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) st.addEventListener(ev, () => crank(false));
+  st.addEventListener("keydown", (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); crank(true); } });
+  st.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); crank(false); } });
 }
 
 /* ---- Scenarios and the steps for the pilot ---- */
 
-let current = null;     // the scenario on show
+let current = null;     // the preset loaded last (null: the default state)
+let loading = null;     // the preset or default state being set up
 let stepIdx = 0;
+let stepsOpen = false;  // its steps panel, open only when asked for
 
 function setSpeed(s) {
-  simSpeed = s;
+  setSimSpeed(s);
   lastFrameWall = performance.now();
   showState();
 }
 
-// The screen overlay and the Start buttons: setting up, waiting to start, or running.
+// The screen overlay while the firmware loads or a scenario is being set up; the step buttons.
 function showState() {
-  const busy = scenarios.busy();
-  const waiting = !busy && booted && simSpeed === 0 && window.S32_SCENARIO && window.S32_SCENARIO.state === "done";
-  $("cc-over").hidden = !(busy || waiting);
-  $("cc-over-text").textContent = busy ? "Setting up…" : waiting ? (current ? current.title : "") : "";
-  $("cc-start").hidden = !waiting;
-  $("scn-start").hidden = !waiting;
-  $("step-next").hidden = waiting || busy || !current || stepIdx >= (current.pilot || []).length;
+  const busy = scenarios.busy() || !booted;
+  $("cc-over").hidden = !busy || window.S32_SCENARIO?.state === "no-firmware";
+  $("cc-over-text").textContent = "Setting up…";
+  $("step-next").hidden = busy || !current || stepIdx >= (current.pilot || []).length;
   $("step-act").disabled = busy;
   $("scn-restart").disabled = busy || !current;
-  if (noteKind === "paused" && simSpeed > 0) note("");
+  $("reset").disabled = busy;
 }
 
 let noteKind = "";
@@ -1064,10 +1378,12 @@ function note(text, kind = "") {
   $("scn-note").textContent = text;
 }
 
+// The preset select, the Steps button (a preset is loaded, its panel closed) and the steps panel.
 function showScenario() {
-  const pick = $("scn-pick");
-  pick.value = current ? current.id : "";
-  $("bench-link").href = "index.html" + (current ? "?scenario=" + encodeURIComponent(current.id) : "");
+  $("scn-pick").value = current ? current.id : "";
+  const steps = !!(current && current.pilot && current.pilot.length);
+  $("steps").hidden = !(steps && stepsOpen);
+  $("steps-open").hidden = !(steps && !stepsOpen);
   showStep();
 }
 
@@ -1076,7 +1392,7 @@ function showStep() {
   const act = $("step-act");
   if (!current) {
     $("step-n").textContent = " ";
-    $("step-say").textContent = "Pick a scenario";
+    $("step-say").textContent = "";
     $("step-watch").textContent = "";
     act.hidden = true;
   } else if (stepIdx < steps.length) {
@@ -1097,9 +1413,9 @@ function showStep() {
 }
 
 const NOTES = {
-  unknown: (sc) => `No scenario "${sc.id}".`,
+  unknown: (sc) => `No preset "${sc.id}".`,
   "no-firmware": () => "No firmware.",
-  setup: () => "Setting up…",
+  setup: () => "",
   paused: () => "",
   running: () => "",
   error: (sc, e) => `${sc.title}: ${e && e.message}`,
@@ -1108,22 +1424,24 @@ const NOTES = {
 const scenarios = s32ScenarioRunner({
   M: () => M,
   booted: () => booted,
-  reboot,
+  reboot: rebootSystem,
   stepSim,
   draw: () => renderLcdFrame(M._s32_wasm_render_rgba()),
-  refresh,
+  refresh: () => { refresh(); if (advancedOpen()) renderTelemetry(telemetry()); },
   resetControls(blank) {
-    Object.assign(bench, BENCH_DEFAULTS);
-    Object.assign(eng, { throttle: 0, prop: 1, stop: "correct", pitch: 0 });
+    benchResetControls(blank);
+    Object.assign(eng, { throttle: 0, prop: 1, stop: "correct", ceiling: 0, onStop: true, starter: false });
     engineStop();                        // the panel powers up with the engine stopped
-    if (blank) cylinders = 4;            // the stock firmware's default configuration
     showControls();
   },
-  // The engine steps of a scenario set the levers to its quadrant; the engine model does the rest.
+  // With the engine model on, a scenario's engine steps set the levers to its quadrant and the model does the rest;
+  // with it off, they set the Advanced controls, as on the bench.
   actions: {
-    preset: () => engineQuadrant(current.quadrant),
-    rpm: () => engineQuadrant(current.quadrant),
-    set: (id, value) => (["sl-rpm", "sl-map", "sl-tps"].includes(id) ? engineQuadrant(current.quadrant) : setControl(id, value)),
+    preset: (name) => (eng.on ? engineQuadrant(loading.quadrant)
+                              : ({ cruise: setCruisePreset, takeoff: setTakeoffPreset })[name]()),
+    rpm: (rpm) => (eng.on ? engineQuadrant(loading.quadrant) : setRpmPreset(rpm)),
+    set: (id, value) => (eng.on && ["sl-rpm", "sl-map", "sl-tps"].includes(id) ? engineQuadrant(loading.quadrant)
+                                                                              : setControl(id, value)),
   },
   setSpeed,
   note(kind, sc, err) {
@@ -1131,11 +1449,14 @@ const scenarios = s32ScenarioRunner({
     showState();
   },
   started(sc) {
-    current = sc;
+    loading = sc;
+    current = sc === DEFAULT_STATE ? null : sc;
     stepIdx = 0;
     showScenario();
   },
   finished() {
+    renderMapTable();
+    showControls();
     showStep();
   },
 });
@@ -1147,20 +1468,21 @@ async function runScenario(id, keepRunning) {
   showState();
 }
 
-function pickScenario(id) {
+// Load a preset (or, with no id, go back to the default state); the address bar says which.
+function loadPreset(id, openSteps) {
   const u = new URL(location.href);
-  u.searchParams.set("scenario", id);
-  u.searchParams.delete("autostart");
+  for (const k of ["scenario", "preset", "autostart"]) u.searchParams.delete(k);
+  if (id) u.searchParams.set("scenario", id);
   history.replaceState(null, "", u);
-  runScenario(id, true);
+  stepsOpen = !!openSteps;
+  return runScenario(id || DEFAULT_STATE, true);
 }
 
 function buildScenarioBar() {
   const pick = $("scn-pick");
   const none = document.createElement("option");
   none.value = "";
-  none.textContent = "Scenario";
-  none.disabled = true;
+  none.textContent = "Presets";
   pick.append(none);
   for (const sc of SCENARIOS) {
     const o = document.createElement("option");
@@ -1169,7 +1491,10 @@ function buildScenarioBar() {
     pick.append(o);
   }
   pick.value = "";
-  pick.addEventListener("change", () => pickScenario(pick.value));
+  pick.addEventListener("change", () => loadPreset(pick.value, false));
+  $("reset").addEventListener("click", () => loadPreset("", false));
+  $("steps-open").addEventListener("click", () => { stepsOpen = true; showScenario(); });
+  $("steps-close").addEventListener("click", () => { stepsOpen = false; showScenario(); });
   $("step-next").addEventListener("click", () => {
     stepIdx++;
     showStep();
@@ -1183,73 +1508,94 @@ function buildScenarioBar() {
     showState();
   });
   $("scn-restart").addEventListener("click", () => { if (current) runScenario(current.id, true); });
-  for (const id of ["scn-start", "cc-start"]) $(id).addEventListener("click", () => { if (booted) setSpeed(1); });
 }
 
 /* ---- The run loop and start-up ---- */
 
+const advancedOpen = () => $("advanced").open;
+
+// The bench runs at the Advanced section's speed (Pause, 1x, 2x, Max); the panel every frame, the readouts 10 times a
+// second, the Advanced tables while it is open, and a loaded flight log once a second.
 function tick() {
   const now = performance.now();
   const dtMs = Math.min(50, Math.max(1, now - lastFrameWall));
   lastFrameWall = now;
   if (M && booted && simSpeed > 0 && !scenarios.busy()) {
-    stepSim(Math.round(dtMs * 10));
+    const quanta = simSpeed === 1 ? Math.round(dtMs * 10) : simSpeed === 2 ? Math.round(dtMs * 20) : 500;
+    const t0 = performance.now();
+    stepSim(quanta);
+    measuredRate = 0.85 * measuredRate + 0.15 * (quanta * 0.1 / Math.max(0.5, performance.now() - t0));
     renderLcdFrame(M._s32_wasm_render_rgba());
-    if (++frameCounter % 6 === 0) refresh();
+    if (++frameCounter % 6 === 0) {
+      const t = telemetry();
+      showReadouts(t);
+      if (advancedOpen()) renderTelemetry(t);
+      if (replayPlaying && replayRows.length > 0 && t.time_s - lastReplayStepSim >= 1.0) {
+        lastReplayStepSim = t.time_s;
+        applyReplayRow((replayIdx + 1) % replayRows.length);
+      }
+    }
   }
   requestAnimationFrame(tick);
-}
-
-// The default firmware (firmware/manifest.json, each file checked against its SHA-256), then its first power-up on
-// blank configuration chips (2 s: the firmware writes its default settings) and one power cycle, as on the bench page.
-async function loadDefaultFirmware() {
-  const fw = await s32FetchDefaultFirmware();
-  if (!fw) return false;
-  for (const f of fw.files) s32LoadFile(M, f.name, new Uint8Array(await f.arrayBuffer()));
-  $("fw-label").textContent = `Firmware: ${fw.label}. `;
-  reboot();
-  if (!booted) return false;
-  if (M._s32_wasm_step_quanta(20000) === 0) reboot();
-  if (booted) engineStop();
-  return booted;
 }
 
 buildFace();
 buildControls();
 buildSwitches();
 buildScenarioBar();
-showControls();
+benchInit();
+$("gpu-mode").textContent = lcd.mode;
+// A change to any Advanced control shows on the cockpit's switches and levers.
+$("advanced").addEventListener("change", showControls);
+$("advanced").addEventListener("input", showControls);
+$("engine-model").addEventListener("change", () => setEngineModel($("engine-model").checked));
+$("set-prop-stop").addEventListener("change", () => setControl("prop-stop", $("set-prop-stop").value));
+if (QUERY.get("advanced") === "1" && !EMBED) $("advanced").open = true;
+setEngineModel(QUERY.get("engine") !== "off");
 showScenario();
+showState();
 $("step-say").textContent = "Loading…";
 
 createS32Module().then(async (mod) => {
   M = mod;
+  $("status-dot").className = "dot warn";
+  $("status-text").textContent = NO_FIRMWARE_MSG;
   requestAnimationFrame(tick);
-  const id = QUERY.get("scenario");
   let ok = false;
   try {
-    ok = await loadDefaultFirmware();
+    ok = await benchLoadDefaultFirmware();
   } catch (e) {
+    $("status-text").textContent = "Default firmware refused: " + e.message + ". " + NO_FIRMWARE_MSG;
     note("Default firmware refused: " + e.message + ".");
-    window.S32_SCENARIO = { id, state: "no-firmware" };
-    return;
   }
   if (!ok) {
-    note(NOTES["no-firmware"]());
+    if (!$("scn-note").textContent) note(NOTES["no-firmware"]());
     $("step-say").textContent = "No firmware";
-    window.S32_SCENARIO = { id, state: "no-firmware" };
+    window.S32_SCENARIO = { id: QUERY.get("scenario"), state: "no-firmware" };
+    window.S32_READY = true;
+    showState();
     return;
   }
+  $("fw-label").textContent = `Firmware: ${FW.ecu}. `;
+  engineStop();
   if (!M._s32_wasm_have_ct()) $("cc-over-text").textContent = "No Controller image";
+  // ?scenario=<id> (or ?preset=<id>): that preset, its steps open (the guide links there to teach it). Otherwise, or
+  // for an id that is no preset, the default state.
+  const id = QUERY.get("scenario") ?? QUERY.get("preset");
   if (id !== null) {
-    await runScenario(id, QUERY.get("autostart") === "1");
-    if (window.S32_SCENARIO.state === "unknown") {
-      setSpeed(1);
-      showScenario();
-    }
+    stepsOpen = true;
+    await runScenario(id, true);
+    window.S32_READY = window.S32_SCENARIO.state !== "unknown";
+    if (window.S32_READY) return;
+    const unknown = $("scn-note").textContent;
+    stepsOpen = false;
+    await runScenario(DEFAULT_STATE, true);
+    note(unknown);
+    window.S32_SCENARIO = { id, state: "unknown" };
   } else {
-    await runScenario("runup", true);   // no scenario named: start at the run-up
+    await runScenario(DEFAULT_STATE, true);
   }
+  window.S32_READY = true;    // started: a test or an embedding page can look now
 });
 </script>
 </body>

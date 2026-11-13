@@ -122,17 +122,47 @@ acknowledged.
 the Fuel Injectors Enable wire of the ECU that is not selected, so only the selected ECU fuels; the page starts with
 ECU 1 selected, as the installation does. The two Fuel Injectors Enable boxes are the same two wires, set one at a time.
 
-## Scenarios and links
+## The page
 
-The Scenarios list on the bench page sets the bench up in a named state. A page can link straight to one:
+`emu/wasm/web/cockpit.html` is the emulator's one page; `index.html` opens it with its Advanced section open, keeping
+its query. It opens as a general, running emulator in a default state: the engine running at idle (prop forward), both
+ignitions on, ECU 1 selected, Fuel Pump 1 on. On top, the Cockpit Controller drawn as the instrument (its screen, the
+knob and the MENU, TUNE and MONITOR buttons, all of which work, including a press and hold, and a TUNE + MONITOR
+button for the two together); beside it the panel: Ignition 1 and 2, a Fuel Pump switch that runs pump 1 or pump 2,
+ECU Select 1 / 2, a STARTER push button (held to crank), a throttle (black knob) and a prop lever (blue knob), and the
+engine's RPM and MAP. A Presets list and a Reset button sit at the top; a one-line footer names the firmware and says
+the emulator is not affiliated. The page follows the system's light or dark setting and fits a 390 px phone screen.
 
-    index.html?scenario=<id>              set up, then pause (press 1x to run)
-    index.html?scenario=<id>&autostart=1  set up and keep running
+Below, closed by default, **Advanced** holds every control and reading of the bench: firmware and configuration
+files (drop your own; export each configuration chip), the engine's crank and cam trigger (RPM, cylinders, trigger
+references), the sensors and the two buses, each ECU's power, link data wires, ignition enable, injector enable,
+timing retard and sensor faults, the panel switches, the flight log replay, the coil, injector and link tables, the
+ECU console, the live fuel and ignition map editor, Reboot and the bench's speed (Pause, 1x, 2x, Max). These controls
+are the bench's state: the cockpit's switches and levers set them, and a change in Advanced shows on the cockpit.
+**Engine model** (on by default) decides who sets RPM, MAP and the throttle sensor: on, the levers and the STARTER
+through the engine model below, and those three sliders are greyed; off, the sliders, as on a plain bench, and the
+levers and STARTER are greyed. **Low-pitch stop** is the engine model's propeller setting.
 
-The scenario is set up once the default firmware has loaded and its first power-up and power cycle have run. Each one
-starts from the same point: the page's default controls with the engine stopped, a power cycle with the configuration
-kept, the Controller's home page, fuel trim 0 %. An unknown id shows a short notice and the bench runs normally.
-Picking a scenario from the list puts its id in the address bar, so the link can be copied from there.
+## Presets and links
+
+A preset sets the emulator up in a named state (switches, levers, faults, configuration) and leaves it running; the
+user carries on from there. Pick one from the Presets list, or link to one:
+
+    cockpit.html?scenario=<id>                     load the preset, its steps open
+    cockpit.html?preset=<id>                       the same
+    cockpit.html?scenario=<id>&embed=1             only the Controller and the panel, on a transparent background,
+                                                   for an iframe in a guide page
+    cockpit.html?advanced=1                        Advanced open
+    cockpit.html?engine=off                        the engine model off
+
+A preset is set up once the default firmware has loaded and its first power-up and power cycle have run. Each one
+starts from the same point: the default controls with the engine stopped, a power cycle with the configuration kept,
+the Controller's home page, fuel trim 0 %. An unknown id shows a short notice and the default state. Loading a preset
+puts its id in the address bar. Each preset has a short checklist (its steps: an item, then what follows in a few
+words, Next and Restart); a preset loaded from a link shows it, one loaded from the list behind a Steps button. Reset
+returns to the default state.
+
+With the engine model off (as `make bench-scenarios` checks it), the presets reach these states:
 
 | id | State |
 |---|---|
@@ -146,15 +176,15 @@ Picking a scenario from the list puts its id in the address bar, so the link can
 | `rpm-limit` | ECU setting 7 (the RPM limit, 3000 by default) set to 2750 in both ECUs, 2700 RPM; at 2750 the ignition cuts |
 | `trim-lop` | cruise with the fuel trim at -28 %: the bench AFR reads about 15.5 |
 
-The states in the right-hand column are what the stock v86 firmware shows on this bench. `rpm-limit` writes its
-setting into both ECUs' configuration chips the way the documented layout holds it (`model/s32_fram.ksy`: a 16-byte
-text slot per setting, then the checksum) and power-cycles, so the ECUs read it as they read any configuration; with
-2750 there both ECUs stop firing at 2750 RPM (observed). The next scenario puts the old value back.
+These are what the stock v86 firmware shows on this bench. `rpm-limit` writes its setting into both ECUs'
+configuration chips the way the documented layout holds it (`model/s32_fram.ksy`: a 16-byte text slot per setting,
+then the checksum) and power-cycles, so the ECUs read it as they read any configuration; with 2750 there both ECUs stop
+firing at 2750 RPM (observed). The next preset puts the old value back.
 
-The scenarios are one table that both pages load (`SCENARIOS` in `emu/wasm/web/s32_bench.js`); `make bench-scenarios`
-opens each link on both pages in headless Chromium and checks that it sets up without a JavaScript error and reaches
-that state (`scripts/bench_scenarios.py`; `SCENARIO_ARGS="--shots DIR"` saves screenshots, `--pages cockpit` runs one
-page).
+The presets are one table (`SCENARIOS` in `emu/wasm/web/s32_bench.js`). `make bench-scenarios` checks the default
+state, each preset from the list and from its link with the engine model on and off, every checklist item done with
+the page's own controls, Restart and Reset, Advanced acting on the same emulator, the embed and a phone width
+(`scripts/bench_scenarios.py`; `SCENARIO_ARGS="--shots DIR"` saves screenshots).
 
 ### The harness and its knobs
 
@@ -167,65 +197,55 @@ command line reads them from the environment (`s32pair --knobs` lists them), the
 regulator's drop-out for 0.3 s. The [I/O ledger](io-ledger.md) lists every signal with its model, faults, knob, test and
 evidence.
 
-## Cockpit view
-
-`cockpit.html`, next to the bench page, shows the same emulator to a pilot: the Cockpit Controller drawn as the
-instrument (its screen, the knob and the MENU, TUNE and MONITOR buttons, all of which work, including a press and
-hold, and a TUNE + MONITOR button for the two together), the panel switches (Ignition 1 and 2, a Fuel Pump switch
-that runs pump 1 or pump 2, ECU Select 1 / 2), a throttle (black knob) and a prop lever (blue knob), and the engine's
-RPM and MAP. Above them, the scenario's checklist: one item at a time, with what follows it in a few words, Next and
-Restart. Below, a folded Bench section with the propeller's low-pitch stop setting and a link to the bench page at the
-same scenario, and a one-line footer (firmware, not affiliated). The page follows the system's light or dark setting
-and fits a 390 px phone screen.
-
-    cockpit.html?scenario=<id>                     set up, then wait for Start
-    cockpit.html?scenario=<id>&autostart=1         set up and keep running
-    cockpit.html?scenario=<id>&autostart=1&embed=1 only the Controller and the switches, on a transparent
-                                                   background, for an iframe in a guide page
-
-The ids are the bench page's (table above). With no id the page starts at the run-up. The checklist is in the same
-table (`pilot`: `say`, `watch`, and for an item the pilot cannot do from the cockpit an action button), with the
-levers' positions (`quadrant`); `shows` and `guide` are for the pilot guide and are not shown on the page.
-`make bench-scenarios` goes through every item on the page with its own controls and checks what each "watch" line
-says, from the panel's pixels, the ECUs' link data, the bench's spark counts and the engine model.
-
 ### The engine model
 
-On the cockpit page the levers and the sparks set the engine; the bench page keeps its own RPM and MAP sliders. The
-model is a simple bench model for an engine with a constant-speed propeller, made up for this page: its numbers are
-not aircraft data and are not fitted to any engine. It is one table in the page (`ENGINE`) and drives the bench's
-existing RPM, MAP and throttle-sensor inputs; the emulated System32 and the C engine model are unchanged.
+With the engine model on, the levers, the STARTER and the sparks set the engine. The model is a simple bench model
+of a normally aspirated engine with a constant-speed propeller, made up for this page: its numbers are not aircraft
+data and are not fitted to any engine. It is one table in the page (`ENGINE`) and drives the bench's existing RPM,
+MAP and throttle-sensor inputs (the Advanced sliders; the throttle-sensor noise stays at 0); the emulated System32
+and the C engine model are unchanged.
 
-* **Throttle.** Sets the RPM the engine reaches with the blades on the low-pitch stop (both ECUs firing): 750 at idle,
-  1800 at 25 %, 2520 at 50 %, 2620 at 65 %, 2700 at full, in straight lines between.
-* **Prop lever.** Sets the governed RPM, 2000 (back) to 2700 (forward), in a straight line. When the engine could turn
-  faster than that, the governor coarsens the blades until it holds the governed RPM. The blade angle follows the
-  angle that would hold it as a first-order lag with a time constant of 0.8 s, so a fast throttle push overshoots
-  first; while no ECU fires, the blades stay where they are. Below the governed RPM the blades sit on the stop and the
-  throttle sets the RPM.
-* **MAP.** With the throttle closed: 29.9 inHg stopped, 12.0 at 750 RPM, 10.0 at 2700 RPM. The throttle opens it
-  toward 29.0 inHg (full throttle): 45 % of the way at 25 % throttle, 70 % at 50 %, 80 % at 65 %. So MAP rises with
-  the throttle and falls a little as RPM rises.
+* **Throttle on the stop.** With the blades on the low-pitch stop, the throttle sets the RPM (both ECUs firing): 750
+  at idle, 1800 at 25 %, 2460 at 40 %, 2600 at 55 %, 2700 at full, in straight lines between.
+* **Prop lever and governor.** The prop lever sets the governed RPM, 2000 (back) to 2700 (forward), in a straight
+  line. The governor holds RPM at most there. While the engine has the power to turn faster, RPM sits at the
+  governed value and the throttle does not move it (from 40 % throttle up at 2400 RPM, it stays within a few RPM);
+  with less power the blades sit on the stop and the throttle sets the RPM. The governed value follows the lever
+  with a first-order lag of 0.7 s, and RPM follows that with its own time constant (below), two lags in a row, so
+  nothing overshoots: prop 2400 -> 2100 at cruise throttle reaches about 2108 RPM after 2.5 s. When the throttle is
+  pushed from on the stop to where the engine could turn faster than the governed RPM, the governor starts from the
+  RPM the stop allows and catches up with the same lag, so RPM overshoots first. While no ECU fires it holds.
+* **MAP.** MAP = 29.9 - 21.9 x x / (1 + x) inHg with x = k x RPM: the manifold's vacuum grows with RPM and saturates at
+  8.0 inHg; the throttle sets k, log-linear between four points the model passes through: closed 750 RPM 12.0 inHg,
+  25 % 1800 RPM 19.0, 55 % 2400 RPM 24.0, full 2700 RPM 29.0. So MAP rises with the throttle, and at part throttle
+  falls as RPM rises: prop 2400 -> 2100 at cruise throttle raises MAP from 24.0 to about 24.6; at full throttle it
+  stays near ambient. Stopped, MAP is 29.9.
 * **Spark.** An ECU counts as firing while its first coil fires at least half as often as the RPM calls for (once per
-  revolution), over the last 0.3 s. With one ECU firing the engine makes 85 % of its power, which turns it at the cube
-  root of that (about 95 %): at the run-up, about 100 RPM less; above the governed RPM the governor makes up the
-  difference. With none it winds down and stops below 200 RPM; it stays stopped until a scenario starts it again.
-* **Speed.** RPM moves toward its target with a time constant of 0.4 s up, 0.6 s down, 1.5 s with no spark. When a
-  scenario starts the engine, RPM is held for 1.0 s while the ECUs pick up the crank signal.
-* **Low-pitch stop** (Bench section). Correct: 2700 RPM at full throttle on the stop. Too fine: 3150 RPM (the
+  revolution), over the last 0.3 s or two revolutions, whichever is longer. Fuel: a pump on and at least one ECU's
+  injectors enabled; without it the engine makes no power. With one ECU firing the engine makes 85 % of its power, which
+  turns it at the cube root of that (about 95 %): at the run-up, about 100 RPM less; above the governed RPM the governor
+  makes up the difference. With none it winds down and stops below 200 RPM.
+* **Starter.** While the STARTER is held the engine turns at 180 RPM (time constant 0.3 s); with spark and fuel it
+  runs up from there to the speed the throttle sets (idle: 750 RPM) and keeps running when the STARTER is let go.
+  With the engine stopped the throttle moves MAP only.
+* **Speed.** RPM moves toward its target with a time constant of 0.4 s up, 0.5 s down, 1.5 s with no spark. When a
+  preset starts the engine, RPM is held for 1.0 s while the ECUs pick up the crank signal.
+* **Low-pitch stop** (Advanced). Correct: 2700 RPM at full throttle on the stop. Too fine: 3150 RPM (the
   throttle's RPM above idle scales with it).
-* **Not modeled.** A fixed-pitch propeller, the starter, mixture, fuel, temperatures, airspeed and load: none of them
-  change the RPM.
+* **Not modeled.** A fixed-pitch propeller, mixture, temperatures, airspeed and load: none of them change the RPM.
 
-On the cockpit page a scenario that sets the engine sets the levers instead: run-up = prop forward, throttle 25 %
-(1800 RPM); takeoff = both forward (2700 RPM, 29.0 inHg); cruise and the scenarios built on it = prop at 2400 RPM,
-throttle at 24.0 inHg (about 55 %); first-start leaves the engine stopped. `rpm-limit` has the RPM limit at 2750 (see
-above), a low-pitch stop set too fine and the run-up levers (about 2040 RPM on that stop). Throttle full, fast: RPM
-runs past 2700 before the governor catches up, the ECUs cut spark at 2750, RPM pulses there for about a second, and
-the governor then holds 2700 (within 10 RPM from about 3.5 s on).
+With the engine model on, a preset that sets the engine sets the levers instead (`quadrant` in the table): the default
+state = prop forward, throttle closed (750 RPM); run-up = prop forward, throttle 25 % (1800 RPM); takeoff = both forward
+(2700 RPM, 29.0 inHg); cruise and the presets built on it = prop at 2400 RPM, throttle at 24.0 inHg (55 %);
+first-start leaves the engine stopped (its checklist ends with the STARTER and the throttle). `rpm-limit` has the RPM
+limit at 2750 (see above), a low-pitch stop set too fine and the run-up levers (about 2040 RPM on that stop). Throttle
+full, fast: RPM runs past 2700 before the governor catches up, to about 2775; the ECUs cut spark at 2750, RPM dips to
+about 2500 and comes back to about 2740 as the governor catches up, then settles to 2700 (within 10 RPM from about
+2.5 s, within 3 RPM from 3.5 s).
 
 The Controller's face is drawn from a photo of the real unit, as one table in the page (`FACE`: the screen, the knob,
 each button and its label, the card slot and the indicator; the last two are drawing only). MENU, TUNE and MONITOR
-drive the same Controller inputs as the bench page's buttons of those names, and the knob's push the same as its PUSH.
+drive the Controller's three button inputs (1, 2, 3), the knob's push input 0, as the earlier bench page's buttons of
+those names did.
 The firmware's soft labels (Up, Down, Back, Push to Select) appear on the screen only: in a list MENU moves up, TUNE
 down and MONITOR goes back.
