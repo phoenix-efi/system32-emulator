@@ -70,6 +70,11 @@ READOUT_JS = """
 """
 
 
+# Presets that open their steps when picked from the list: the pilot has to act before the system is usable
+# (first-start: cycle MASTER after the first power-up).
+OPEN_STEPS = {"first-start"}
+
+
 def near(v: float, want: float, tol: float) -> bool:
     return abs(v - want) <= tol
 
@@ -470,7 +475,8 @@ def default_page(open_page, check, only, shots) -> None:
         expect = EXPECT_COCKPIT[sid](pg, a, b) if sid in EXPECT_COCKPIT else EXPECT[sid](a, b)
         check(f"preset {sid}", [(pg.evaluate("window.S32_SCENARIO.state") == "done", "set up"),
                                 (b["speed"] == 1, "running"),
-                                (pg.evaluate(panel) == [True, False, sid], "steps closed, Steps button shown"),
+                                (pg.evaluate(panel) == ([False, True, sid] if sid in OPEN_STEPS else [True, False, sid]),
+                                 "steps open (needs a pilot action)" if sid in OPEN_STEPS else "steps closed, Steps button shown"),
                                 (f"scenario={sid}" in pg.url, f"address {pg.url}")]
               + expect + switches_show(sid, pg.evaluate(COCKPIT_JS), b))
     pg.click("#steps-open")

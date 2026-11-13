@@ -419,6 +419,13 @@
       <div class="plate" id="switches">
         <div class="sw-groups">
           <div class="grp">
+            <span class="engr">Master</span>
+            <div class="grp-body">
+              <div class="legend" aria-hidden="true"><span>On</span><span>Off</span></div>
+              <button type="button" class="tog" id="sw-master" role="switch" aria-label="Master power" aria-checked="true"></button>
+            </div>
+          </div>
+          <div class="grp">
             <span class="engr">Ignition</span>
             <div class="grp-body">
               <div class="legend" aria-hidden="true"><span>On</span><span>Off</span></div>
@@ -1047,8 +1054,11 @@ function setLever(which, pct) {
 const ecuSelect = () => (ctl("sw-e2-inj").checked && !ctl("sw-e1-inj").checked ? "2" : "1");
 const pumpSelect = () => (ctl("sw-pump2").checked && !ctl("sw-pump1").checked ? "2" : "1");
 
+let masterOn = true;                               // the MASTER switch (masterSwitch)
+
 function showControls() {
-  for (const el of document.querySelectorAll(".tog[role=switch]")) el.setAttribute("aria-checked", String(ctl(el.dataset.ctl).checked));
+  for (const el of document.querySelectorAll(".tog[role=switch][data-ctl]")) el.setAttribute("aria-checked", String(ctl(el.dataset.ctl).checked));
+  $("sw-master").setAttribute("aria-checked", String(masterOn));
   for (const [id, v, name] of [["sw-select", ecuSelect(), "ECU Select"], ["sw-pump", pumpSelect(), "Fuel Pump"]]) {
     $(id).dataset.value = v;
     $(id).setAttribute("aria-label", `${name}: ${v}`);
@@ -1285,11 +1295,34 @@ const TOGGLE_SVG = '<svg viewBox="0 0 44 72" aria-hidden="true">' +
   '<g class="lever"><path d="M19.8 36 L17.6 10 Q22 6.2 26.4 10 L24.2 36 Z" fill="url(#g-bat)" stroke="#3a3b3f" stroke-width="0.5"/>' +
   '<ellipse cx="22" cy="9.6" rx="4.9" ry="3.6" fill="url(#g-tip)" stroke="#4a4b4f" stroke-width="0.5"/></g></svg>';
 
+// MASTER: off removes power from both ECUs (and so from the Controller, which they power); on is a power-up with the
+// configuration kept, as on the airplane. The way to cycle power after a first power-up.
+async function masterSwitch() {
+  if (!M || !booted || scenarios.busy()) return;
+  if (masterOn) {
+    masterOn = false;
+    setControl("sw-e1-pwr", false);
+    setControl("sw-e2-pwr", false);
+    showControls();
+    return;
+  }
+  masterOn = true;
+  setControl("sw-e1-pwr", true);
+  setControl("sw-e2-pwr", true);
+  showControls();
+  const run = scenarios.act([["power-cycle"]]);
+  showState();
+  await run;
+  showState();
+}
+
 function buildSwitches() {
   for (const el of document.querySelectorAll(".tog")) {
     const two = el.dataset.value !== undefined;      // a two-position switch: ECU Select, Fuel Pump
-    el.innerHTML = TOGGLE_SVG + (two ? "" : `<span class="tog-n">${el.id.slice(-1)}</span>`);
+    const numbered = !two && el.id !== "sw-master";
+    el.innerHTML = TOGGLE_SVG + (numbered ? `<span class="tog-n">${el.id.slice(-1)}</span>` : "");
     el.addEventListener("click", () => {
+      if (el.id === "sw-master") { masterSwitch(); return; }
       if (!interact()) return;
       const other = el.dataset.value === "1" ? "2" : "1";
       if (el.id === "sw-select") setControl("sel-ecu-select", other);
@@ -1462,6 +1495,7 @@ const scenarios = s32ScenarioRunner({
 });
 
 async function runScenario(id, keepRunning) {
+  masterOn = true;                                   // a preset or Reset starts powered (its controls power both ECUs)
   const run = scenarios.run(id, keepRunning);
   showState();
   await run;
@@ -1491,7 +1525,10 @@ function buildScenarioBar() {
     pick.append(o);
   }
   pick.value = "";
-  pick.addEventListener("change", () => loadPreset(pick.value, false));
+  pick.addEventListener("change", () => {
+    const sc = SCENARIOS.find((x) => x.id === pick.value);
+    loadPreset(pick.value, !!(sc && sc.openSteps));
+  });
   $("reset").addEventListener("click", () => loadPreset("", false));
   $("steps-open").addEventListener("click", () => { stepsOpen = true; showScenario(); });
   $("steps-close").addEventListener("click", () => { stepsOpen = false; showScenario(); });

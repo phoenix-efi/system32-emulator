@@ -37,16 +37,16 @@ const CRUISE = { rpm: 2400, map: 24.0 };
 const DEFAULT_STATE = { id: "default", title: "Default", steps: [["rpm", 750], ["run", 2]],
                         quadrant: { throttle: 0, prop: 100 } };
 const SCENARIOS = [
-  { id: "first-start", title: "First start", blank: true,
+  { id: "first-start", title: "First start", blank: true, openSteps: true,
     description: "Blank configuration chips, first power-up, engine stopped.",
     steps: [["run", 1]],
     shows: "First power-up of a new system; the ECUs fire from the next power-up. Then the first engine start.",
     guide: "",
     pilot: [
-      { say: "Look at the tabs", watch: "ECU1 and ECU2 red." },
+      { say: "Tabs red: normal on a first power-up", watch: "ECU1 and ECU2 red." },
       { say: "Press MENU", watch: "Main Menu." },
       { say: "Press MONITOR", watch: "Gauges." },
-      { say: "Cycle power", act: "Cycle power", do: [["power-cycle"]], watch: "ECU1 blue, ECU2 green." },
+      { say: "MASTER OFF, then ON", act: "Cycle power", do: [["power-cycle"]], watch: "ECU1 blue, ECU2 green." },
       { say: "Starter, hold 2 s", watch: "Engine runs. RPM ~750." },
       { say: "Throttle up", watch: "RPM rises." },
     ] },
