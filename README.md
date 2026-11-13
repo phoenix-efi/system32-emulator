@@ -41,12 +41,29 @@ FW=.firmware-cache/v86
 S32_ECU1_FRAM=$FW/default_ecu.fram S32_ECU2_FRAM=$FW/default_ecu.fram S32_RPM=2400 S32_START=2 S32_PPM=screen.ppm \
   emu/pair/build/s32pair_shim $FW/CT086001_prog.bin $FW/v86_ec086001_bflash.bin $FW/v86_ec086001_pflash.bin 10
 emu/pair/build/s32pair_shim --knobs           # every harness knob: engine, sensors, faults, switches, bezel, power
-make serve-bench                              # the browser bench with the default firmware, http://127.0.0.1:8787/
+make serve-bench                              # the browser emulator with the default firmware, http://127.0.0.1:8787/
 ```
 
 The front-end options (logs, screens, snapshots, traces, datalog replay) are in the header of
 `emu/pair/s32pair.c`; what the bench observes is in `docs/simulator.md`; the trace and the conformance gate in
 `docs/conformance.md`; the hardware I/O the model covers in `docs/io-ledger.md` (`model/io_ledger.json`).
+
+## In the browser
+
+`make serve-bench` serves the emulator page (`emu/wasm/web/cockpit.html`) with the default firmware. It opens
+running, at idle, with the Controller drawn as the panel instrument (screen, MENU, TUNE, MONITOR and the knob), the
+panel switches (Ignition 1 and 2, fuel pump, ECU Select, starter), a throttle and a prop lever.
+
+* **Presets** load a starting state (switches, levers, faults, configuration): first start, run-up, cruise, takeoff,
+  ECU 1 silent, MAP sensor failed, ECU 2 fuels, RPM limit, lean trim. Each has optional checklist steps.
+  **Reset** returns to the default state.
+* **Links** open the page in a preset: `cockpit.html?scenario=runup`. `&embed=1` shows only the Controller and the
+  switches, for embedding in another page.
+* **Advanced**, below, holds every bench control and reading: sensors, faults, per-ECU switches, coil, injector and
+  link readouts, the live fuel and ignition maps, file drop and export, datalog replay and the ECU console.
+
+The engine behind the levers is a simple bench model (governor, manifold pressure, spark); its numbers are in
+`docs/simulator.md`. `make bench-scenarios` opens every preset in headless Chromium and checks its state.
 
 ## Firmware
 
