@@ -134,7 +134,8 @@
   }
   .cc-face { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .cc-screen { position: absolute; background: #000; overflow: hidden; }
-  .cc-screen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  /* The canvas is sized in device pixels by s32CreateLcd (s32_bench.js), which does its own scaling. */
+  .cc-screen canvas { display: block; width: 100%; height: 100%; }
   .cc-glass {
     position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(150deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 38%, transparent 39%);
@@ -204,13 +205,23 @@
     -webkit-user-select: none;
   }
   .engr { font-size: 10.5px; font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; color: var(--hw-engrave); }
-  .sw-groups { display: flex; justify-content: space-between; gap: 10px; --tog-w: 52px; --tog-h: 85px; }
+  /* The switch row: a grid of columns, each as wide as its label or its switches, whichever is wider, so labels never
+     run into each other. Labels sit on one baseline (two-line labels such as FUEL / PUMP grow upward), switches under
+     them. The switches scale with the panel's width: five toggles, four legends half a toggle wide, the starter's
+     column and the small gaps beside the toggles (70px together) and the column gaps fill 100cqi. */
   .plate { container-type: inline-size; }
-  .grp .engr { white-space: nowrap; }
-  .grp { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
-  .grp-body { display: flex; align-items: flex-start; gap: 2px; }
+  .sw-groups {
+    --sw-gap: 10px;
+    --tog-w: clamp(30px, calc((100cqi - 4 * var(--sw-gap) - 70px) / 7), 52px);
+    --tog-h: calc(var(--tog-w) * 85 / 52);
+    display: grid; grid-template-rows: auto auto; grid-auto-flow: column; justify-content: space-between;
+    column-gap: var(--sw-gap); row-gap: 8px;
+  }
+  .grp { display: contents; }
+  .grp .engr { align-self: end; justify-self: center; text-align: center; line-height: 1.25; white-space: nowrap; }
+  .grp-body { display: flex; align-items: flex-start; gap: 2px; justify-self: center; }
   .legend {
-    position: relative; height: var(--tog-h); width: 26px;
+    position: relative; height: var(--tog-h); width: calc(var(--tog-w) / 2);
     font-size: 9.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hw-engrave-2);
   }
   .legend span { position: absolute; right: 2px; transform: translateY(-50%); }
@@ -261,8 +272,8 @@
   @media (max-width: 420px) { .plate { padding: 24px 16px 20px; } }
   /* A narrow panel (a phone, or the embed beside the Controller): smaller switches. */
   @container (max-width: 340px) {
-    .sw-groups { --tog-w: 40px; --tog-h: 66px; gap: 6px; }
-    .legend { width: 20px; font-size: 9px; }
+    .sw-groups { --sw-gap: 6px; }
+    .legend { font-size: 9px; }
     .grp .engr { font-size: 9.5px; letter-spacing: 0.08em; }
     .pow { --slot-w: 42px; --lev-h: 140px; gap: 14px; }
     .quad { gap: 30px; padding: 12px 18px 10px; }
@@ -278,7 +289,9 @@
 
   /* The starter: a round push button on the panel, held to crank */
   .starter {
-    width: 40px; height: 40px; margin-top: 16px; border-radius: 50%; padding: 0; cursor: pointer; touch-action: none;
+    --st: clamp(30px, calc(var(--tog-w) * 0.77), 40px);   /* in proportion to the toggles; centred on their nuts */
+    width: var(--st); height: var(--st); margin-top: calc((var(--tog-h) - var(--st)) / 2);
+    border-radius: 50%; padding: 0; cursor: pointer; touch-action: none;
     border: 2px solid #0b0b0c;
     background: radial-gradient(circle at 38% 32%, #e0e0dc 0%, #9a9b97 45%, #5d5e5b 100%);
     box-shadow: 0 0 0 4px #141517, 0 0 0 5px rgba(255, 255, 255, 0.07), 0 3px 4px rgba(0, 0, 0, 0.6);
@@ -434,14 +447,14 @@
             </div>
           </div>
           <div class="grp">
-            <span class="engr">Fuel Pump</span>
+            <span class="engr">Fuel<br>Pump</span>
             <div class="grp-body">
               <div class="legend" aria-hidden="true"><span>1</span><span>2</span></div>
               <button type="button" class="tog" id="sw-pump" aria-label="Fuel Pump" data-value="1"></button>
             </div>
           </div>
           <div class="grp">
-            <span class="engr">ECU Select</span>
+            <span class="engr">ECU<br>Select</span>
             <div class="grp-body">
               <div class="legend" aria-hidden="true"><span>1</span><span>2</span></div>
               <button type="button" class="tog" id="sw-select" aria-label="ECU Select" data-value="1"></button>

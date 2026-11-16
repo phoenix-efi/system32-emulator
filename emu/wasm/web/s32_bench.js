@@ -150,7 +150,42 @@ const SCENARIOS = [
 
 // The Controller panel (320 x 240 RGBA from the module) on a canvas: WebGL when the browser has it, else Canvas2D.
 // mode names the renderer in use.
+//
+// The canvas's backing store follows its size in device pixels (CSS size x devicePixelRatio, so page zoom too), and
+// the panel is scaled into it as sharp as the scale allows: each panel pixel is a solid block of device pixels with
+// at most one blended device pixel at its edge (Canvas2D: a whole-number nearest-neighbour enlargement, then a smoothed
+// fit). Stretching a 320 x 240 canvas with CSS (image-rendering: pixelated) instead doubles some rows and columns and
+// not others at most zooms, so one-pixel lines such as the ECU1 / ECU2 tab borders came out uneven.
 function s32CreateLcd(canvas) {
+  const W = 320, H = 240;
+  let redraw = () => {};
+  const fit = (w, h) => {
+    w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+    if (canvas.width === w && canvas.height === h) return;
+    canvas.width = w; canvas.height = h;
+    redraw();
+  };
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver((entries) => {
+      const e = entries[entries.length - 1];
+      const dp = e.devicePixelContentBoxSize && e.devicePixelContentBoxSize[0];
+      if (dp) fit(dp.inlineSize, dp.blockSize);
+      else fit(e.contentRect.width * (window.devicePixelRatio || 1), e.contentRect.height * (window.devicePixelRatio || 1));
+    }).observe(canvas);
+  }
+  // Page zoom in a browser that reports only CSS sizes: the CSS size may not change, the device pixel ratio does.
+  const watchDpr = () => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+    const on = () => {
+      const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+      if (r.width) fit(r.width * d, r.height * d);
+      watchDpr();
+    };
+    if (mq.addEventListener) mq.addEventListener("change", on, { once: true });
+  };
+  watchDpr();
+
   const glOpts = { alpha: false, depth: false, stencil: false, antialias: false, preserveDrawingBuffer: true,
                    powerPreference: "high-performance", desynchronized: true };
   const gl = canvas.getContext("webgl2", glOpts) || canvas.getContext("webgl", glOpts);
@@ -164,12 +199,23 @@ function s32CreateLcd(canvas) {
         gl_Position = vec4(a_pos, 0.0, 1.0);
       }
     `;
+    // Within each panel pixel the sample stays on the pixel's centre except in the last 1/scale of it, where the
+    // (linear) texture filter blends into the next pixel: every edge gets at most one blended device pixel, whatever
+    // the scale. scale = device pixels per panel pixel (at least 1: smaller is a plain bilinear reduction).
     const fsSrc = `
-      precision mediump float;
+      precision highp float;
       varying vec2 v_uv;
       uniform sampler2D u_tex;
+      uniform vec2 u_src;
+      uniform vec2 u_out;
       void main() {
-        gl_FragColor = texture2D(u_tex, v_uv);
+        vec2 scale = max(u_out / u_src, vec2(1.0));
+        vec2 texel = v_uv * u_src;
+        vec2 base = floor(texel);
+        vec2 d = fract(texel) - 0.5;
+        vec2 range = 0.5 - 0.5 / scale;
+        vec2 f = (d - clamp(d, -range, range)) * scale + 0.5;
+        gl_FragColor = texture2D(u_tex, (base + f) / u_src);
       }
     `;
     const compile = (type, src) => {
@@ -196,30 +242,54 @@ function s32CreateLcd(canvas) {
 
         const tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 320, 240, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.uniform2f(gl.getUniformLocation(prog, "u_src"), W, H);
+        const uOut = gl.getUniformLocation(prog, "u_out");
+        const paint = () => {
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          gl.uniform2f(uOut, canvas.width, canvas.height);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        };
+        redraw = paint;
         return {
           mode: isWebGL2 ? "WebGL2 GPU" : "WebGL GPU",
           draw(M, rgbaPtr) {
-            const pixels = new Uint8Array(M.HEAPU8.buffer, rgbaPtr, 320 * 240 * 4);
-            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 320, 240, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            const pixels = new Uint8Array(M.HEAPU8.buffer, rgbaPtr, W * H * 4);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            paint();
           },
         };
       }
     }
   }
+  // Canvas2D: the same in two steps, a whole-number nearest-neighbour enlargement, then a smoothed fit.
   const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(320, 240);
+  const src = document.createElement("canvas");
+  src.width = W; src.height = H;
+  const sctx = src.getContext("2d");
+  const img = sctx.createImageData(W, H);
+  const big = document.createElement("canvas");
+  const bctx = big.getContext("2d");
+  const paint = () => {
+    const k = Math.max(1, Math.floor(Math.min(canvas.width / W, canvas.height / H)));
+    if (big.width !== W * k || big.height !== H * k) { big.width = W * k; big.height = H * k; }
+    bctx.imageSmoothingEnabled = false;
+    bctx.drawImage(src, 0, 0, W * k, H * k);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(big, 0, 0, canvas.width, canvas.height);
+  };
+  redraw = paint;
   return {
     mode: "Canvas2D",
     draw(M, rgbaPtr) {
-      img.data.set(new Uint8ClampedArray(M.HEAPU8.buffer, rgbaPtr, 320 * 240 * 4));
-      ctx.putImageData(img, 0, 0);
+      img.data.set(new Uint8ClampedArray(M.HEAPU8.buffer, rgbaPtr, W * H * 4));
+      sctx.putImageData(img, 0, 0);
+      paint();
     },
   };
 }
